@@ -4,6 +4,11 @@ A state-aware fuzzer for smart contract.
 
 ## Setup
 
+Clone the git project.
+```
+git clone --recurse-submodules git@github.com:Demonhero0/Odyssey.git
+```
+
 Installing "crytic-compile"
 ```
 pip install crytic-compile
@@ -82,3 +87,6 @@ Running the example case.
 ```
 ./odyssey fuzz-on-chain --config example_onchain/config.json
 ```
+
+## Dataset
+The dataset is stored in `./data`, where `dapps.csv` is the list of dapps and `dataset` contains the `config.json` of each dapp.

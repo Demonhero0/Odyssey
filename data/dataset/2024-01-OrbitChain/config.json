@@ -1,0 +1,97 @@
+{
+    "fuzzing": {
+        "workers": 5,
+        "workerResetLimit": 50,
+        "timeout": 3600,
+        "testLimit": 0,
+        "shrinkLimit": 500,
+        "callSequenceLength": 50,
+        "corpusDirectory": "",
+        "coverageEnabled": false,
+        "stateGuidedConfig": {
+            "enabledStateGuided": true,
+            "enabledNewScope": true,
+            "enabledStateConstruction": true,
+            "enabledStateDivision": true,
+            "enabledStateDirection": true,
+            "enabledCompression": false
+        },
+        "metricRecordConfig": {
+            "coverageEnabled": false,
+            "branchCoverageEnabled": false,
+            "storageWriteEnabled": false,
+            "stateEnabled": false,
+            "slotEnabled": false
+        },
+        "targetContracts": [],
+        "targetContractsBalances": [
+            "0x56bc75e2d63100000"
+        ],
+        "constructorArgs": {},
+        "deployerAddress": "0x30000",
+        "senderAddresses": [
+            "0x10000"
+        ],
+        "senderAddressesBalances": [
+            "0x56bc75e2d63100000"
+        ],
+        "blockNumberDelayMax": 60480,
+        "blockTimestampDelayMax": 604800,
+        "blockGasLimit": 125000000,
+        "transactionGasLimit": 12500000,
+        "testing": {
+            "stopOnFailedTest": true,
+            "stopOnNoTests": false,
+            "testAllContracts": true,
+            "traceAll": true,
+            "contractCallConfig": {
+                "EnabledContractCall": true,
+                "ContractCallProbability": 0.5,
+                "EnabledInternalCall": true,
+                "internalCallConfig": 0.5
+            },
+            "invariantChecking": {
+                "enabled": true,
+                "jsonPath": "/home/sujzh3/smartfuzz/smartfuzz/tmp_midas/common_inv.json",
+                "invariantGuided": false
+            }
+        },
+        "onChainFuzzingConfig": {
+            "isOnChain": true,
+            "targetAddresses": ["0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a", "0xB5680a55d627c52DE992e3EA52a86f19DA475399", "0x9263e7873613DDc598a701709875634819176AfF", "0x9ca536d01B9E78dD30de9d7457867F8898634049"],
+            "blockNumber": 18908049,
+            "etherscanApiKey": "DY59RXYCG9MXIH72ZCXC183KERUY7Y8VAF",
+            "nodeURL": "http://localhost:18545",
+            "cacheContractPath": "/home/pc/disk1/sujzh3/SmartFuzz/medusa/tmp_contracts",
+            "cacheAccountStatePath": "/home/pc/disk1/sujzh3/SmartFuzz/medusa"
+        },
+        "chainConfig": {
+            "codeSizeCheckDisabled": true,
+            "cheatCodes": {
+                "cheatCodesEnabled": true,
+                "enableFFI": false
+            }
+        },
+        "metricLogConfig": {
+            "enabled": true,
+            "time_interval": 1,
+            "time_log_file": "./time_log.json",
+            "sequence_interval": 100,
+            "sequence_log_file": "./sequence_log.json"
+        }
+    },
+    "compilation": {
+        "platform": "crytic-compile",
+        "platformConfig": {
+            "target": ".",
+            "solcVersion": "",
+            "exportDirectory": "",
+            "args": []
+        }
+    },
+    "logging": {
+        "level": "info",
+        "logDirectory": "",
+        "noColor": false
+    }
+}
