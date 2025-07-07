@@ -9,6 +9,12 @@ Clone the git project.
 git clone --recurse-submodules git@github.com:Demonhero0/Odyssey.git
 ```
 
+Change the branch in `geth-onchain-execution`
+```
+cd geth-onchain-execution
+git checkout onchain
+```
+
 Installing "crytic-compile"
 ```
 pip install crytic-compile
