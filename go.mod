@@ -8,8 +8,9 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/fxamacker/cbor v1.5.1
+	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.34.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
@@ -44,7 +45,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
-	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
