@@ -1,0 +1,189 @@
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/crytic/medusa/fuzzing/config"
+	"github.com/spf13/cobra"
+)
+
+// addFuzzFlags adds the various flags for the fuzz command
+func addFuzzFlags() error {
+	// Get the default project config and throw an error if we cant
+	defaultConfig, err := config.GetDefaultProjectConfig(DefaultCompilationPlatform)
+	if err != nil {
+		return err
+	}
+
+	// Prevent alphabetical sorting of usage message
+	fuzzCmd.Flags().SortFlags = false
+
+	// Config file
+	fuzzCmd.Flags().String("config", "", "path to config file")
+
+	// Compilation Target
+	fuzzCmd.Flags().String("compilation-target", "", TargetFlagDescription)
+
+	// Number of workers
+	fuzzCmd.Flags().Int("workers", 0,
+		fmt.Sprintf("number of fuzzer workers (unless a config file is provided, default is %d)", defaultConfig.Fuzzing.Workers))
+
+	// Timeout
+	fuzzCmd.Flags().Int("timeout", 0,
+		fmt.Sprintf("number of seconds to run the fuzzer campaign for (unless a config file is provided, default is %d). 0 means that timeout is not enforced", defaultConfig.Fuzzing.Timeout))
+
+	// Test limit
+	fuzzCmd.Flags().Uint64("test-limit", 0,
+		fmt.Sprintf("number of transactions to test before exiting (unless a config file is provided, default is %d). 0 means that test limit is not enforced", defaultConfig.Fuzzing.TestLimit))
+
+	// Tx sequence length
+	fuzzCmd.Flags().Int("seq-len", 0,
+		fmt.Sprintf("maximum transactions to run in sequence (unless a config file is provided, default is %d)", defaultConfig.Fuzzing.CallSequenceLength))
+
+	// Target contracts
+	fuzzCmd.Flags().StringSlice("target-contracts", []string{},
+		fmt.Sprintf("target contracts for fuzz testing (unless a config file is provided, default is %v)", defaultConfig.Fuzzing.TargetContracts))
+
+	// Corpus directory
+	fuzzCmd.Flags().String("corpus-dir", "",
+		fmt.Sprintf("directory path for corpus items and coverage reports (unless a config file is provided, default is %q)", defaultConfig.Fuzzing.CorpusDirectory))
+
+	// Senders
+	fuzzCmd.Flags().StringSlice("senders", []string{},
+		"account address(es) used to send state-changing txns")
+
+	// Deployer address
+	fuzzCmd.Flags().String("deployer", "",
+		"account address used to deploy contracts")
+
+	// Trace all
+	fuzzCmd.Flags().Bool("trace-all", false,
+		fmt.Sprintf("print the execution trace for every element in a shrunken call sequence instead of only the last element (unless a config file is provided, default is %t)", defaultConfig.Fuzzing.Testing.TraceAll))
+
+	// Logging color
+	fuzzCmd.Flags().Bool("no-color", false, "disabled colored terminal output")
+
+	// coverage guide
+	fuzzCmd.Flags().Bool("coverage-guide", false, "enable coverage-guide")
+
+	// state guide
+	fuzzCmd.Flags().Bool("state-guide", false, "enable state guide")
+
+	return nil
+}
+
+// updateProjectConfigWithFuzzFlags will update the given projectConfig with any CLI arguments that were provided to the fuzz command
+func updateProjectConfigWithFuzzFlags(cmd *cobra.Command, projectConfig *config.ProjectConfig) error {
+	var err error
+
+	// If --compilation-target was used
+	if cmd.Flags().Changed("compilation-target") {
+		// Get the new target
+		newTarget, err := cmd.Flags().GetString("compilation-target")
+		if err != nil {
+			return err
+		}
+
+		err = projectConfig.Compilation.SetTarget(newTarget)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update number of workers
+	if cmd.Flags().Changed("workers") {
+		projectConfig.Fuzzing.Workers, err = cmd.Flags().GetInt("workers")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update timeout
+	if cmd.Flags().Changed("timeout") {
+		projectConfig.Fuzzing.Timeout, err = cmd.Flags().GetInt("timeout")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update test limit
+	if cmd.Flags().Changed("test-limit") {
+		projectConfig.Fuzzing.TestLimit, err = cmd.Flags().GetUint64("test-limit")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update sequence length
+	if cmd.Flags().Changed("seq-len") {
+		projectConfig.Fuzzing.CallSequenceLength, err = cmd.Flags().GetInt("seq-len")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update target contracts
+	if cmd.Flags().Changed("target-contracts") {
+		projectConfig.Fuzzing.TargetContracts, err = cmd.Flags().GetStringSlice("target-contracts")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update corpus directory
+	if cmd.Flags().Changed("corpus-dir") {
+		projectConfig.Fuzzing.CorpusDirectory, err = cmd.Flags().GetString("corpus-dir")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update senders
+	if cmd.Flags().Changed("senders") {
+		projectConfig.Fuzzing.SenderAddresses, err = cmd.Flags().GetStringSlice("senders")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update deployer address
+	if cmd.Flags().Changed("deployer") {
+		projectConfig.Fuzzing.DeployerAddress, err = cmd.Flags().GetString("deployer")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update trace all enablement
+	if cmd.Flags().Changed("trace-all") {
+		projectConfig.Fuzzing.Testing.TraceAll, err = cmd.Flags().GetBool("trace-all")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update logging color mode
+	if cmd.Flags().Changed("no-color") {
+		projectConfig.Logging.NoColor, err = cmd.Flags().GetBool("no-color")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update state guide
+	if cmd.Flags().Changed("coverage-guide") {
+		projectConfig.Fuzzing.CoverageEnabled, err = cmd.Flags().GetBool("coverage-guide")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update state guide
+	if cmd.Flags().Changed("state-guide") {
+		projectConfig.Fuzzing.StateGuidedConfig.EnabledStateGuided, err = cmd.Flags().GetBool("state-guide")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

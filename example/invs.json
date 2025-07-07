@@ -1,0 +1,12 @@
+
+{
+    "0x": {
+        "profitable": {
+            "level": "critical",
+            "oriStateVarNames": ["balance"],
+            "postStateVarNames":["balance"],
+            "str": "{post(balance)} < {ori(balance)} + 1000000000000000000",
+            "format": "cond({post(balance)} > {ori(balance)}, {post(balance)} < {ori(balance)} + 1000000000000000000, 1000000000000000000)"
+        }
+    }
+}
