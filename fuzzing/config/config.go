@@ -118,6 +118,9 @@ type FuzzingConfig struct {
 
 	// MetricLogConfig describes the configuration used for metric logging
 	MetricLogConfig MetricLogConfig `json:"metricLogConfig"`
+
+	// BugDetectionConfig describes the configuration used for bug detection
+	BugDetectionConfig BugDetectionConfig `json:"bugDetectionConfig"`
 }
 
 // fuzzingConfigMarshaling is a structure that overrides field types during JSON marshaling. It allows FuzzingConfig to
@@ -375,7 +378,7 @@ type StateGuidedConfig struct {
 	EnabledStateDivision     bool `json:"enabledStateDivision"`
 	EnabledStateDirection    bool `json:"enabledStateDirection"`
 	EnabledCompression       bool `json:"enabledCompression"`
-	CorpusSize bool `json:corpusSize`
+	CorpusSize               bool `json:corpusSize`
 }
 
 type VariableRecoverConfig struct {
@@ -401,6 +404,11 @@ type MetricRecordConfig struct {
 	StorageWriteEnabled   bool `json:"storageWriteEnabled"`
 	StateEnabled          bool `json:"stateEnabled"`
 	SlotEnabled           bool `json:"slotEnabled"`
+}
+
+type BugDetectionConfig struct {
+	Enabled    bool `json:"enabled"`
+	Reentrancy bool `json:"reentrancy"`
 }
 
 type MetricLogConfig struct {
@@ -461,4 +469,8 @@ func (f *FuzzingConfig) UseNewStateScope() bool {
 
 func (f *FuzzingConfig) UseStateDirection() bool {
 	return f.StateGuidedConfig.EnabledStateDirection
+}
+
+func (f *FuzzingConfig) UseBugDetector() bool {
+	return f.BugDetectionConfig.Enabled
 }

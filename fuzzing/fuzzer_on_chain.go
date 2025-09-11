@@ -17,7 +17,6 @@ import (
 	"github.com/crytic/medusa/chain/types"
 	"github.com/crytic/medusa/compilation/platforms"
 	compilationTypes "github.com/crytic/medusa/compilation/types"
-	"github.com/crytic/medusa/fuzzing/branchcoverage"
 	"github.com/crytic/medusa/fuzzing/calls"
 	"github.com/crytic/medusa/fuzzing/config"
 	fuzzerTypes "github.com/crytic/medusa/fuzzing/contracts"
@@ -25,7 +24,6 @@ import (
 	"github.com/crytic/medusa/fuzzing/coverage"
 	"github.com/crytic/medusa/fuzzing/executiontracer"
 	"github.com/crytic/medusa/fuzzing/invariant"
-	"github.com/crytic/medusa/fuzzing/storagewrite"
 	"github.com/crytic/medusa/fuzzing/valuegeneration"
 	"github.com/crytic/medusa/logging"
 	"github.com/crytic/medusa/logging/colors"
@@ -35,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type FuzzerInitAccountState struct {
@@ -130,10 +127,6 @@ func NewFuzzerOnCahin(config config.ProjectConfig) (*Fuzzer, error) {
 		fuzzer.baseValueSet.AddAddress(sender)
 	}
 
-	if config.Fuzzing.Testing.ContractCallConfig.EnabledContractCall {
-		fuzzer.baseValueSet.AddAddress(FuzzHelperContractAddr)
-	}
-
 	// init the node url and initAccountState
 	rpc.Provider = rpc.NodeProvider{
 		NodeURL: fuzzer.config.Fuzzing.OnChainFuzzingConfig.NodeUrl,
@@ -142,41 +135,6 @@ func NewFuzzerOnCahin(config config.ProjectConfig) (*Fuzzer, error) {
 		initAccountState: state.NewAccountState(true, &rpc.Provider, int64(fuzzer.config.Fuzzing.OnChainFuzzingConfig.BlockNumber)),
 	}
 
-	// compile helpercontract and util contract
-	// if fuzzer.config.Fuzzing.UseHelperContract() {
-	// 	compilation := helpercontracts.InitHelperContractCompilation()
-	// 	// Compile the targets specified in the compilation config
-	// 	fuzzer.logger.Info("Compiling helpercontract with ", colors.Bold, fuzzer.config.Compilation.Platform, colors.Reset)
-	// 	compilations, _, err := compilation.Compile()
-	// 	if err != nil {
-	// 		fuzzer.logger.Error("Failed to compile helpercontract", err)
-	// 		return nil, err
-	// 	}
-
-	// 	// Loop for each contract in each compilation and deploy it to the test node.
-	// 	for i := 0; i < len(compilations); i++ {
-	// 		// Add our compilation to the list and get a reference to it.
-	// 		fuzzer.compilations = append(fuzzer.compilations, compilations[i])
-	// 		compilation := &fuzzer.compilations[len(fuzzer.compilations)-1]
-
-	// 		// Loop for each source
-	// 		for sourcePath, source := range compilation.Sources {
-	// 			// Loop for every contract and register it in our contract definitions
-	// 			for contractName := range source.Contracts {
-	// 				contract := source.Contracts[contractName]
-	// 				contractDefinition := fuzzerTypes.NewContract(contractName, sourcePath, &contract, compilation)
-	// 				fuzzer.contractDefinitions = append(fuzzer.contractDefinitions, contractDefinition)
-	// 			}
-	// 		}
-
-	// 		// Cache all of our source code if it hasn't been already.
-	// 		err := compilation.CacheSourceCode()
-	// 		if err != nil {
-	// 			fuzzer.logger.Warn("Failed to cache compilation source file data", err)
-	// 		}
-	// 	}
-	// }
-
 	// for deploying test contract
 	if fuzzer.config.Fuzzing.OnChainFuzzingConfig.InitialStatePath != "" {
 		err = fuzzer.loadInitialState()
@@ -184,13 +142,6 @@ func NewFuzzerOnCahin(config config.ProjectConfig) (*Fuzzer, error) {
 			return nil, fmt.Errorf("error in loading initial state:%v", err)
 		}
 	}
-
-	// load proxyContractMap
-	// cacheData, err := fuzzer.loadCacheData()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error in loading cache data: %v", err)
-	// }
-	// contractInfoMap := cacheData.ContractInfoMap
 
 	// crawl target contracts
 	for _, targetAddress := range fuzzer.config.Fuzzing.OnChainFuzzingConfig.TargetAddresses {
@@ -201,7 +152,6 @@ func NewFuzzerOnCahin(config config.ProjectConfig) (*Fuzzer, error) {
 			return nil, err
 		}
 
-		
 		fuzzer.proxyContractMap[common.HexToAddress(targetAddress)] = common.HexToAddress(targetAddress)
 		if contractInfo.Proxy && contractInfo.Implementation != "" {
 			fuzzer.logger.Info(fmt.Sprintf("-> Initialzing contract of implementation %s", strings.ToLower(contractInfo.Implementation)), colors.Reset)
@@ -214,14 +164,11 @@ func NewFuzzerOnCahin(config config.ProjectConfig) (*Fuzzer, error) {
 	}
 
 	if fuzzer.config.Fuzzing.Testing.InvariantChecking.Enabled {
-		// fuzzer.logger.Warn("If using InvariantTesting, please set variableRecoverEnabled = true")
 		attachInvariantTestCaseProvider(fuzzer)
 	}
 
 	// attach helper contract
 	attachHelperContract(fuzzer)
-
-	// fuzzer.dumpCacheData(cacheData)
 
 	return fuzzer, nil
 }
@@ -261,8 +208,6 @@ func (f *Fuzzer) handleOnChainAddress(targetAddress string) (contractInfo *rpc.C
 	if err != nil {
 		return nil, fmt.Errorf("ABI Parser error: %v", err)
 	}
-
-
 
 	deployedBytecode, err := f.fuzzerInitAccountState.initAccountState.GetCode(common.HexToAddress(targetAddress))
 	if err != nil {
@@ -628,59 +573,17 @@ func chainSetupFromOnChain(fuzzer *Fuzzer, testChain *chain.TestChain) (error, *
 	// for debug
 	// testChain.AddTracer(executiontracer.NewExecutionTracer(fuzzer.contractDefinitions, testChain.CheatCodeContracts()), true, false)
 
-	// deploy helperContract
-	args := make([]any, 0)
-	var addressList []common.Address
-	for _, targetAddress := range fuzzer.config.Fuzzing.OnChainFuzzingConfig.TargetAddresses {
-		addressList = append(addressList, common.HexToAddress(targetAddress))
-	}
-	args = append(args, addressList)
-	msgData, err := FuzzHelperContract.CompiledContract().GetDeploymentMessageData(args)
-	if err != nil {
-		return fmt.Errorf("initial contract deployment failed for contract \"%v\", error: %v", FuzzHelperContract.Name(), err), nil
-	}
-	// msgData, _ := hex.DecodeString(FuzzHelperContractBytecode)
-	// initBalance, _ := new(big.Int).SetString("50000000000000000000", 10) // 5 ** 19
-	initBalance := new(big.Int).Div(fuzzer.config.Fuzzing.SenderAddressesBalances[0], big.NewInt(2))
-	msg := calls.NewCallMessage(fuzzer.senders[0], nil, 0, initBalance, fuzzer.config.Fuzzing.BlockGasLimit, nil, nil, nil, msgData)
-	msg.FillFromTestChainProperties(testChain)
-	err = testChain.PendingBlockAddTx(msg.ToCoreMessage())
-	if err != nil {
-		return err, nil
-	}
-
-	err = testChain.PendingBlockCommit()
-	if err != nil {
-		return err, nil
-	}
-
-	// Ensure our transaction succeeded and, if it did not, attach an execution trace to it and re-run it.
-	// The execution trace will be returned so that it can be provided to the user for debugging
-	if block.MessageResults[0].Receipt.Status != coreTypes.ReceiptStatusSuccessful {
-		// Create a call sequence element to represent the failed contract deployment tx
-		cse := calls.NewCallSequenceElement(nil, msg, 0, 0)
-		cse.ChainReference = &calls.CallSequenceElementChainReference{
-			Block:            block,
-			TransactionIndex: len(block.Messages) - 1,
-		}
-
-		// Replay the execution trace for the failed contract deployment tx
-		err = cse.AttachExecutionTrace(testChain, fuzzer.contractDefinitions)
-
-		// Throw an error if execution tracing threw an error or the trace is nil
+	if fuzzer.config.Fuzzing.UseHelperContract() {
+		// deploy helperContract
+		var executionTrace *executiontracer.ExecutionTrace
+		err, executionTrace, FuzzHelperContractAddr = deployHelperContract(fuzzer, testChain, block, []common.Address{})
 		if err != nil {
-			return fmt.Errorf("failed to attach execution trace to failed contract deployment tx: %v", err), nil
-		}
-		if cse.ExecutionTrace == nil {
-			return fmt.Errorf("contract deployment tx returned a failed status: %v", block.MessageResults[0].ExecutionResult.Err), nil
+			return err, executionTrace
 		}
 
-		// Return the execution error and the execution trace
-		return fmt.Errorf("contract deployment tx returned a failed status: %v", block.MessageResults[0].ExecutionResult.Err), cse.ExecutionTrace
+		fuzzer.baseValueSet.AddAddress(FuzzHelperContractAddr)
+		fuzzer.helperContract = FuzzHelperContractAddr
 	}
-
-	FuzzHelperContractAddr = block.MessageResults[0].Receipt.ContractAddress
-	fuzzer.baseValueSet.AddAddress(FuzzHelperContractAddr)
 
 	for _, tokenAddress := range fuzzer.config.Fuzzing.OnChainFuzzingConfig.TargetAddresses {
 		token := common.HexToAddress(tokenAddress)
@@ -707,228 +610,6 @@ func chainSetupFromOnChain(fuzzer *Fuzzer, testChain *chain.TestChain) (error, *
 	}
 
 	return nil, nil
-}
-
-func (f *Fuzzer) attachCallSequenceToCorpus(testChain *chain.TestChain, deployedContractBytecodes []*types.DeployedContractBytecode) error {
-
-	// for token swap
-	// for _, addr := range f.config.Fuzzing.OnChainFuzzingConfig.TargetAddresses {
-	// 	var isExistPair bool
-	// 	address := common.HexToAddress(addr)
-	// 	isExistV2Pair, err := f.checkIsExistUniswapV2Pair(testChain, wethAddr, address)
-	// 	if err != nil {
-	// 		return fmt.Errorf("error in attachTokenSwapToCorpus: %v", err)
-	// 	}
-	// 	var callSequence calls.CallSequence
-	// 	swapAmount, _ := new(big.Int).SetString("10000000000000000000", 10) // 10 ** 19
-	// 	if isExistV2Pair {
-	// 		tokenSwapElement := f.genUniswapV2SwapCallSequenceElement(testChain, swapAmount, address, f.senders[0], f.senders[0])
-	// 		callSequence = append(callSequence, tokenSwapElement)
-	// 		isExistPair = true
-	// 	} else {
-	// 		pairAddress, err := f.getUniswapV1Pair(testChain, address)
-	// 		if err != nil {
-	// 			return fmt.Errorf("error in attachTokenSwapToCorpus: %v", err)
-	// 		}
-	// 		if pairAddress != common.HexToAddress("0x") {
-	// 			tokenSwapElement := f.genUniswapV1SwapCallSequenceElement(testChain, swapAmount, address, f.senders[0], pairAddress)
-	// 			callSequence = append(callSequence, tokenSwapElement)
-	// 			isExistPair = true
-	// 		}
-	// 	}
-
-	// 	if isExistPair {
-	// 		token := address
-	// 		// deal with approve of sender
-	// 		for _, contractBytecode := range deployedContractBytecodes {
-	// 			matchedContract := f.contractDefinitions.MatchBytecode(contractBytecode.InitBytecode, contractBytecode.RuntimeBytecode)
-	// 			if matchedContract != nil {
-	// 				if _, ok := matchedContract.CompiledContract().Abi.Methods["approve"]; ok {
-	// 					owner := f.senders[0]
-	// 					spender := contractBytecode.Address
-	// 					approveCallSequenceElement := f.genApproveCallSequenceElement(testChain, owner, spender, token, matchedContract)
-	// 					approveCallSequenceElement.UnableSendWithHelperContract = true
-	// 					callSequence = append(callSequence, approveCallSequenceElement)
-
-	// 					// deal with approve of helperContract
-	// 					approveMethod := FuzzHelperContract.CompiledContract().Abi.Methods["approve"]
-	// 					msg := calls.NewCallMessageWithAbiValueData(owner, &FuzzHelperContractAddr, 0, big.NewInt(0), f.config.Fuzzing.TransactionGasLimit, nil, nil, nil, &calls.CallMessageDataAbiValues{
-	// 						Method:      &approveMethod,
-	// 						InputValues: []any{token, spender},
-	// 					})
-	// 					msg.FillFromTestChainProperties(testChain)
-	// 					helperApproveCallSequenceElement := calls.NewCallSequenceElement(FuzzHelperContract, msg, 0, 0)
-	// 					helperApproveCallSequenceElement.UnableSendWithHelperContract = true
-	// 					callSequence = append(callSequence, helperApproveCallSequenceElement)
-	// 				}
-	// 			}
-	// 		}
-
-	// 		err = f.corpus.AddSequence(callSequence, big.NewInt(1), true)
-	// 		if err != nil {
-	// 			return fmt.Errorf("error in AddSequence in AddCallSequenceForSwap: %v", err)
-	// 		}
-	// 	}
-	// }
-	return nil
-}
-
-// run takes a base Chain in a setup state ready for testing, clones it, and begins executing fuzzed transaction calls
-// and asserting properties are upheld. This runs until Fuzzer.ctx cancels the operation.
-// Returns a boolean indicating whether Fuzzer.ctx has indicated we cancel the operation, and an error if one occurred.
-func (fw *FuzzerWorker) runOnChain(baseTestChain *chain.TestChain) (bool, error) {
-	// Clone our chain, attaching our necessary components for fuzzing post-genesis, prior to all blocks being copied.
-	// This means any tracers added or events subscribed to within this inner function are done so prior to chain
-	// setup (initial contract deployments), so data regarding that can be tracked as well.
-	var err error
-
-	cloneFunc := func(initializedChain *chain.TestChain) error {
-		// Subscribe our chain event handlers
-		initializedChain.Events.ContractDeploymentAddedEventEmitter.Subscribe(fw.onChainContractDeploymentAddedEvent)
-		initializedChain.Events.ContractDeploymentRemovedEventEmitter.Subscribe(fw.onChainContractDeploymentRemovedEvent)
-
-		// Emit an event indicating the worker has created its chain.
-		err = fw.Events.FuzzerWorkerChainCreated.Publish(FuzzerWorkerChainCreatedEvent{
-			Worker: fw,
-			Chain:  initializedChain,
-		})
-		if err != nil {
-			return fmt.Errorf("error returned by an event handler when emitting a worker chain created event: %v", err)
-		}
-
-		fw.initTestChain(initializedChain)
-		return nil
-	}
-
-	fw.chain, err = baseTestChain.Clone(cloneFunc)
-
-	// If we encountered an error during cloning, return it.
-	if err != nil {
-		return false, err
-	}
-
-	// Defer the closing of the test chain object
-	defer fw.chain.Close()
-
-	// Emit an event indicating the worker has setup its chain.
-	err = fw.Events.FuzzerWorkerChainSetup.Publish(FuzzerWorkerChainSetupEvent{
-		Worker: fw,
-		Chain:  fw.chain,
-	})
-	if err != nil {
-		return false, fmt.Errorf("error returned by an event handler when emitting a worker chain setup event: %v", err)
-	}
-
-	// Increase our generation metric as we successfully generated a test node
-	fw.workerMetrics().workerStartupCount.Add(fw.workerMetrics().workerStartupCount, big.NewInt(1))
-
-	// Save the current block number as all contracts have been deployed at this point, and we'll want to revert
-	// to this state between testing.
-	fw.testingBaseBlockNumber = fw.chain.HeadBlockNumber()
-
-	// Enter the main fuzzing loop, restricting our memory database size based on our config variable.
-	// When the limit is reached, we exit this method gracefully, which will cause the fuzzing to recreate
-	// this worker with a fresh memory database.
-	sequencesTested := 0
-	for sequencesTested <= fw.fuzzer.config.Fuzzing.WorkerResetLimit {
-		// If our context signalled to close the operation, exit our testing loop accordingly, otherwise continue.
-		if utils.CheckContextDone(fw.fuzzer.ctx) {
-			return true, nil
-		}
-
-		// Emit an event indicating the worker is about to test a new call sequence.
-		err := fw.Events.CallSequenceTesting.Publish(FuzzerWorkerCallSequenceTestingEvent{
-			Worker: fw,
-		})
-		if err != nil {
-			return false, fmt.Errorf("error returned by an event handler when a worker emitted an event indicating testing of a new call sequence is starting: %v", err)
-		}
-
-		callSequence, shrinkVerifiers, err := fw.testNextCallSequence()
-		if err != nil {
-			return false, err
-		}
-
-		// If we have any requests to shrink call sequences, do so now.
-		for _, shrinkVerifier := range shrinkVerifiers {
-			_, err = fw.shrinkCallSequence(callSequence, shrinkVerifier)
-			if err != nil {
-				return false, err
-			}
-		}
-
-		// Emit an event indicating the worker is about to test a new call sequence.
-		err = fw.Events.CallSequenceTested.Publish(FuzzerWorkerCallSequenceTestedEvent{
-			Worker: fw,
-		})
-		if err != nil {
-			return false, fmt.Errorf("error returned by an event handler when a worker emitted an event indicating testing of a new call sequence has concluded: %v", err)
-		}
-
-		// Update our sequences tested metrics
-		fw.workerMetrics().sequencesTested.Add(fw.workerMetrics().sequencesTested, big.NewInt(1))
-		sequencesTested++
-	}
-
-	// We have not cancelled fuzzing operations, but this worker exited, signalling for it to be regenerated.
-	return false, nil
-}
-
-// func pathExists(path string) (bool, error) {
-// 	_, err := os.Stat(path)
-// 	if err == nil {
-// 		return true, nil
-// 	}
-// 	if os.IsNotExist(err) {
-// 		return false, nil
-// 	}
-// 	return false, err
-// }
-
-func (fw *FuzzerWorker) initTestChain(testChain *chain.TestChain) {
-	// If we have coverage-guided fuzzing enabled, create a tracer to collect coverage and connect it to the chain.
-	if fw.fuzzer.config.Fuzzing.UseCoverageTracing() {
-		fw.coverageTracer = coverage.NewCoverageTracer(fw.fuzzer.contractDefinitions)
-		testChain.AddTracer(fw.coverageTracer, true, false)
-	}
-
-	if fw.fuzzer.config.Fuzzing.UseBranchCoverageTracing() {
-		fw.branchCoverageTracer = branchcoverage.NewCoverageTracer(fw.fuzzer.contractDefinitions)
-		testChain.AddTracer(fw.branchCoverageTracer, true, false)
-	}
-
-	if fw.fuzzer.config.Fuzzing.UseStorageWriteTracing() {
-		fw.storageWriteTracer = storagewrite.NewStorageWriteTracer()
-		testChain.AddTracer(fw.storageWriteTracer, true, false)
-	}
-
-	// If we have invariant-guided fuzzing enabled, create a tracer to collect invariant and connect it to the chain.
-	if fw.fuzzer.config.Fuzzing.VariableRecoverConfig.TraceStorage && fw.fuzzer.config.Fuzzing.Testing.InvariantChecking.Enabled {
-		fw.txTracer = invariant.NewTxTracer()
-		fw.txTracer.SetContracts(fw.fuzzer.contractDefinitions, testChain.CheatCodeContracts())
-		fw.txTracer.SetRecodingState([]common.Address{})
-		testChain.AddTracer(fw.txTracer, true, false)
-	}
-
-	// for state tracing
-	if fw.fuzzer.config.Fuzzing.UseStateTracing() {
-		fw.stateTracer = &invariant.StateTracer{
-			RecordingSLOAD:    true,
-			RecordingSSTORE:   true,
-			RecordingTransfer: true,
-		}
-		testChain.AddTracer(fw.stateTracer, true, false)
-	}
-
-	// for debug
-	// testChain.AddTracer(executiontracer.NewExecutionTracer(fw.fuzzer.contractDefinitions, testChain.CheatCodeContracts()), true, false)
-
-	if fw.fuzzer.config.Fuzzing.OnChainFuzzingConfig.IsOnChain {
-		// copy accountState and attach accountState
-		testChain.IsOnChain = true
-		testChain.CacheAccountState = fw.fuzzer.fuzzerInitAccountState.initAccountState.DeepCopy()
-		testChain.State().SetAccountState(testChain.CacheAccountState)
-	}
 }
 
 func (fw *FuzzerWorker) beforeRun() error {

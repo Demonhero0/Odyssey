@@ -7,6 +7,7 @@ import (
 
 	"github.com/crytic/medusa/chain"
 	"github.com/crytic/medusa/fuzzing/branchcoverage"
+	"github.com/crytic/medusa/fuzzing/bugdetector"
 	"github.com/crytic/medusa/fuzzing/calls"
 	fuzzerTypes "github.com/crytic/medusa/fuzzing/contracts"
 	"github.com/crytic/medusa/fuzzing/coverage"
@@ -33,6 +34,9 @@ type FuzzerWorker struct {
 	coverageTracer       *coverage.CoverageTracer
 	branchCoverageTracer *branchcoverage.CoverageTracer
 	storageWriteTracer   *storagewrite.StorageWriteTracer
+
+	// bug detector tracer
+	bugDetectorTracer *bugdetector.BugDetectorTracer
 
 	// testingBaseBlockNumber refers to the block number at which all contracts for testing have been deployed, prior
 	// to any fuzzing activity. This block number is reverted to after testing each call sequence to reset state.

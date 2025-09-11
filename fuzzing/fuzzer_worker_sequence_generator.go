@@ -246,7 +246,9 @@ func (g *CallSequenceGenerator) PopSequenceElement() (*calls.CallSequenceElement
 	if element == nil {
 		element, err = g.generateNewElement()
 		if err != nil {
-			return nil, err
+			// return nil, err
+			// ignore the err fmt.Errorf("cannot generate fuzzed tx as there are no state changing methods to call")
+			return nil, nil
 		}
 	} else {
 		// We have an element, if our generator set a post-call modify for this function, execute it now to modify

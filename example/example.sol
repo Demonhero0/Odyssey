@@ -1,5 +1,5 @@
 contract Example {
-    uint256 public constant bar = 10;
+    uint256 public constant bar = 5;
     uint256 public rate = 1;
     mapping(address => uint256) public balances;
 

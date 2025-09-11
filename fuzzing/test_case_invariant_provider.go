@@ -451,7 +451,6 @@ func (t *InvariantCheckerProvider) callSequencePostCheck(worker *FuzzerWorker, c
 			continue
 		}
 
-		invariantCheckerMethod := invariantCheckerMethod
 		violatedInvariantFlag, _, _, err := t.checkInvariantViolation(worker, &invariantCheckerMethod, callSequence)
 		if err != nil {
 			return nil, err
@@ -500,6 +499,7 @@ func (t *InvariantCheckerProvider) callSequencePostCheck(worker *FuzzerWorker, c
 						violationCase              string
 						err                        error
 					)
+					// check the moreBalance case whether satisfiying profitable or not, if yes, report it as profitable
 					if invariantCheckerMethod.MethodSig == "moreBalance" {
 						profitableCheckerMethod := workerState.invariantCheckerMethodMap["profitable"]
 						shrunkenSequenceFailedTest, distance, violationCase, err = t.checkInvariantViolation(worker, &profitableCheckerMethod, shrunkenCallSequence)
@@ -550,15 +550,15 @@ func (t *InvariantCheckerProvider) callSequencePostCheck(worker *FuzzerWorker, c
 }
 
 func (t *InvariantCheckerProvider) isMatchContractInv(invariantCheckerMethod *InvariantCheckerMethod, call *calls.CallMessage, contract *fuzzerTypes.Contract) bool {
-	if t.fuzzer.config.Fuzzing.OnChainFuzzingConfig.IsOnChain {
-		if *call.To == common.Address(invariantCheckerMethod.Address) {
-			return invariantCheckerMethod.MethodSig == "contract" || invariantCheckerMethod.MethodSig == call.DataAbiValues.Method.Sig
-		}
-	} else {
-		if strings.Join([]string{contract.SourcePath(), contract.Name()}, "/") == strings.Join([]string{invariantCheckerMethod.Contract.SourcePath(), invariantCheckerMethod.Contract.Name()}, "/") {
-			return invariantCheckerMethod.MethodSig == "contract" || invariantCheckerMethod.MethodSig == call.DataAbiValues.Method.Sig
-		}
-	}
+	// if t.fuzzer.config.Fuzzing.OnChainFuzzingConfig.IsOnChain {
+	// 	if *call.To == common.Address(invariantCheckerMethod.Address) {
+	// 		return invariantCheckerMethod.MethodSig == "contract" || invariantCheckerMethod.MethodSig == call.DataAbiValues.Method.Sig
+	// 	}
+	// } else {
+	// 	if strings.Join([]string{contract.SourcePath(), contract.Name()}, "/") == strings.Join([]string{invariantCheckerMethod.Contract.SourcePath(), invariantCheckerMethod.Contract.Name()}, "/") {
+	// 		return invariantCheckerMethod.MethodSig == "contract" || invariantCheckerMethod.MethodSig == call.DataAbiValues.Method.Sig
+	// 	}
+	// }
 	return false
 }
 

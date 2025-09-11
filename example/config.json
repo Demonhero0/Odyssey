@@ -19,6 +19,10 @@
             "stateEnabled": false,
             "slotEnabled": false
         },
+        "bugDetectionConfig": {
+            "enabled": true,
+            "reentrancy": true
+        },
         "targetContracts": [],
         "targetContractsBalances": [
             "0x56bc75e2d63100000"
@@ -41,6 +45,12 @@
             "stopOnNoTests": true,
             "testAllContracts": true,
             "traceAll": false,
+            "contractCallConfig": {
+                "EnabledContractCall": true,
+                "ContractCallProbability": 0.5,
+                "EnabledInternalCall": true,
+                "internalCallConfig": 0.5
+            },
             "invariantChecking": {
                 "enabled": true,
                 "jsonPath": "invs.json"
@@ -58,7 +68,7 @@
         "platform": "crytic-compile",
         "platformConfig": {
             "target": ".",
-            "solcVersion": "",
+            "solcVersion": "0.8.25",
             "exportDirectory": "",
             "args": []
         }

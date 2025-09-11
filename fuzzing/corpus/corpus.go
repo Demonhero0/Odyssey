@@ -8,6 +8,7 @@ import (
 
 	"github.com/crytic/medusa/chain"
 	"github.com/crytic/medusa/fuzzing/branchcoverage"
+	"github.com/crytic/medusa/fuzzing/bugdetector"
 	"github.com/crytic/medusa/fuzzing/calls"
 	"github.com/crytic/medusa/fuzzing/config"
 	"github.com/crytic/medusa/fuzzing/contracts"
@@ -32,6 +33,9 @@ type Corpus struct {
 	coverageMaps       *coverage.CoverageMaps
 	branchCoverageMaps *branchcoverage.CoverageMaps
 	storageWriteSet    *storagewrite.StorageWriteSet
+
+	// for risk bug detector
+	bugMap *bugdetector.BugMap
 
 	// mutableSequenceFiles represents a corpus directory with files which describe call sequences that should
 	// be used for mutations.
@@ -90,6 +94,9 @@ func NewCorpus(corpusDirectory string, fuzzingConfig *config.FuzzingConfig) (*Co
 		// recording seed queue
 		seedQueues:    make(map[string][]common.Hash),
 		fuzzingConfig: fuzzingConfig,
+
+		// bug detector
+		bugMap: bugdetector.NewBugMap(),
 	}
 
 	// If we have a corpus directory set, parse our call sequences.
@@ -130,6 +137,10 @@ func (c *Corpus) BranchCoverageMaps() *branchcoverage.CoverageMaps {
 
 func (c *Corpus) StorageWriteSet() *storagewrite.StorageWriteSet {
 	return c.storageWriteSet
+}
+
+func (c *Corpus) BugMap() *bugdetector.BugMap {
+	return c.bugMap
 }
 
 // CallSequenceEntryCount returns the total number of call sequences entries in the corpus, based on the provided filter

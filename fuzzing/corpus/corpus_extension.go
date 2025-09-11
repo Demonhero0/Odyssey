@@ -7,6 +7,7 @@ import (
 	"github.com/crytic/medusa/chain"
 	"github.com/crytic/medusa/chain/types"
 	"github.com/crytic/medusa/fuzzing/branchcoverage"
+	"github.com/crytic/medusa/fuzzing/bugdetector"
 	"github.com/crytic/medusa/fuzzing/calls"
 	"github.com/crytic/medusa/fuzzing/contracts"
 	"github.com/crytic/medusa/fuzzing/coverage"
@@ -340,6 +341,14 @@ func (c *Corpus) CheckSequenceMetricAndUpdate(callSequence calls.CallSequence, m
 		if c.fuzzingConfig.StorageWriteEnabled {
 			updated = storageWriteUpdated || updated
 			revertedUpdated = revertedStorageWriteUpdated || revertedUpdated
+		}
+	}
+
+	if c.fuzzingConfig.UseBugDetector() {
+		bugMap := bugdetector.GetBugDetectorTracerResults(lastMessageResult)
+		_, err := c.bugMap.Update(bugMap)
+		if err != nil {
+			return err
 		}
 	}
 

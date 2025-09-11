@@ -15,6 +15,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var uniswapV2Contract *fuzzingTypes.Contract
@@ -438,4 +441,22 @@ func ConvertToContractCall(element *calls.CallSequenceElement) (*calls.CallSeque
 	element.Call = calls.NewCallMessageWithAbiValueData(call.From, &FuzzHelperContractAddr, 0, call.Value, call.GasLimit, call.GasPrice, call.GasFeeCap, call.GasTipCap, abiData)
 
 	return element, nil
+}
+
+// CalculateContractAddress 计算合约部署地址
+func CalculateContractAddress(sender common.Address, nonce uint64) common.Address {
+	// 1. RLP 编码 [sender, nonce]
+	// 注意：go-ethereum 的 rlp 包会自动处理数据类型转换
+	data, err := rlp.EncodeToBytes([]interface{}{sender, nonce})
+	if err != nil {
+		// 在实际应用中，你需要处理这个错误
+		panic(err)
+	}
+
+	// 2. Keccak-256 哈希
+	hash := crypto.Keccak256(data)
+
+	// 3. 取哈希结果的后 20 个字节作为地址
+	// 这里的 hash 是一个 32 字节的数组，切片 [12:] 得到后 20 个字节
+	return common.BytesToAddress(hash[12:])
 }

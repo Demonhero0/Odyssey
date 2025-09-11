@@ -23,14 +23,14 @@ func (f FuzzingConfig) MarshalJSON() ([]byte, error) {
 		CallSequenceLength      int                       `json:"callSequenceLength"`
 		CorpusDirectory         string                    `json:"corpusDirectory"`
 		CoverageEnabled         bool                      `json:"coverageEnabled"`
-		BranchCoverageEnabled         bool                      `json:"branchCoverageEnabled"`
+		BranchCoverageEnabled   bool                      `json:"branchCoverageEnabled"`
 		StorageWriteEnabled     bool                      `json:"storageWriteEnabled"`
 		TargetContracts         []string                  `json:"targetContracts"`
 		TargetContractsBalances []*hexutil.Big            `json:"targetContractsBalances"`
 		ConstructorArgs         map[string]map[string]any `json:"constructorArgs"`
 		DeployerAddress         string                    `json:"deployerAddress"`
 		SenderAddresses         []string                  `json:"senderAddresses"`
-		SenderAddressesBalances []*hexutil.Big                `json:"senderAddressesBalances"`
+		SenderAddressesBalances []*hexutil.Big            `json:"senderAddressesBalances"`
 		MaxBlockNumberDelay     uint64                    `json:"blockNumberDelayMax"`
 		MaxBlockTimestampDelay  uint64                    `json:"blockTimestampDelayMax"`
 		BlockGasLimit           uint64                    `json:"blockGasLimit"`
@@ -42,6 +42,7 @@ func (f FuzzingConfig) MarshalJSON() ([]byte, error) {
 		StateGuidedConfig       StateGuidedConfig         `json:"stateGuidedConfig"`
 		MetricRecordConfig      MetricRecordConfig        `json:"metricRecordConfig"`
 		MetricLogConfig         MetricLogConfig           `json:"metricLogConfig"`
+		BugDetectionConfig      BugDetectionConfig        `json:"bugDetectionConfig"`
 	}
 	var enc FuzzingConfig
 	enc.Workers = f.Workers
@@ -81,6 +82,7 @@ func (f FuzzingConfig) MarshalJSON() ([]byte, error) {
 	enc.StateGuidedConfig = f.StateGuidedConfig
 	enc.MetricRecordConfig = f.MetricRecordConfig
 	enc.MetricLogConfig = f.MetricLogConfig
+	enc.BugDetectionConfig = f.BugDetectionConfig
 	return json.Marshal(&enc)
 }
 
@@ -102,7 +104,7 @@ func (f *FuzzingConfig) UnmarshalJSON(input []byte) error {
 		ConstructorArgs         map[string]map[string]any `json:"constructorArgs"`
 		DeployerAddress         *string                   `json:"deployerAddress"`
 		SenderAddresses         []string                  `json:"senderAddresses"`
-		SenderAddressesBalances []*hexutil.Big                `json:"senderAddressesBalances"`
+		SenderAddressesBalances []*hexutil.Big            `json:"senderAddressesBalances"`
 		MaxBlockNumberDelay     *uint64                   `json:"blockNumberDelayMax"`
 		MaxBlockTimestampDelay  *uint64                   `json:"blockTimestampDelayMax"`
 		BlockGasLimit           *uint64                   `json:"blockGasLimit"`
@@ -114,6 +116,7 @@ func (f *FuzzingConfig) UnmarshalJSON(input []byte) error {
 		StateGuidedConfig       *StateGuidedConfig        `json:"stateGuidedConfig"`
 		MetricRecordConfig      *MetricRecordConfig       `json:"metricRecordConfig"`
 		MetricLogConfig         *MetricLogConfig          `json:"metricLogConfig"`
+		BugDetectionConfig      *BugDetectionConfig       `json:"bugDetectionConfig"`
 	}
 	var dec FuzzingConfig
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -205,6 +208,9 @@ func (f *FuzzingConfig) UnmarshalJSON(input []byte) error {
 	}
 	if dec.MetricLogConfig != nil {
 		f.MetricLogConfig = *dec.MetricLogConfig
+	}
+	if dec.BugDetectionConfig != nil {
+		f.BugDetectionConfig = *dec.BugDetectionConfig
 	}
 	return nil
 }

@@ -29,10 +29,13 @@ type MetricPoint struct {
 	Dataflow     *int `json:"dataflow,omitempty"`
 	StorageWrite *int `json:"storage_write,omitempty"`
 
-	InstructionNumber *int `json:"instructionNumber,omitempty"`
-	BranchNumber *int `json:"branchNumber,omitempty"`
-	VariableValueMap map[string]map[string]uint64 `json:"variableValueMap,omitempty"`
-	DirectionMap map[string]uint64 `json:"directionMap,omitempty"`
+	InstructionNumber *int                         `json:"instructionNumber,omitempty"`
+	BranchNumber      *int                         `json:"branchNumber,omitempty"`
+	VariableValueMap  map[string]map[string]uint64 `json:"variableValueMap,omitempty"`
+	DirectionMap      map[string]uint64            `json:"directionMap,omitempty"`
+
+	// bug detection
+	Bugs []string `json:"bugs"`
 }
 
 var timeLogMetricPoints []MetricPoint
@@ -104,9 +107,13 @@ func (f *Fuzzer) logMetrics(metricPoints *[]MetricPoint, filePath string) error 
 		count := f.corpus.StorageWriteSet().TotalStorageWriteCount(true)
 		mp.StorageWrite = &count
 	}
-	if f.config.Fuzzing.UseStateTracing() {
+	if f.config.Fuzzing.MetricRecordConfig.StateEnabled {
 		mp.VariableValueMap = f.corpus.InvariantMaps().VariableValueMap()
 		mp.DirectionMap = f.corpus.InvariantMaps().DirectionMap()
+	}
+
+	if f.config.Fuzzing.UseBugDetector() {
+		mp.Bugs = f.corpus.BugMap().BugDetectionResult()
 	}
 	*metricPoints = append(*metricPoints, mp)
 

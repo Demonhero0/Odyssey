@@ -99,6 +99,9 @@ type Fuzzer struct {
 
 	// for recording state and coverage
 	StateAndCoverage []StateAndCoverage
+
+	// helperContract
+	helperContract common.Address
 }
 
 type StateAndCoverage struct {
@@ -190,7 +193,12 @@ func NewFuzzer(config config.ProjectConfig) (*Fuzzer, error) {
 	if fuzzer.config.Compilation != nil {
 		// Compile the targets specified in the compilation config
 		fuzzer.logger.Info("Compiling targets with ", colors.Bold, fuzzer.config.Compilation.Platform, colors.Reset)
-		compilations, _, err := (*fuzzer.config.Compilation).Compile()
+		compilations, out, err := (*fuzzer.config.Compilation).Compile()
+		if len(out) > 0 {
+			fuzzer.logger.Info("Compilation output: compiling new artifacts")
+		} else {
+			fuzzer.logger.Info("Compilation output: using existing artifacts")
+		}
 		if err != nil {
 			fuzzer.logger.Error("Failed to compile target", err)
 			return nil, err
@@ -362,6 +370,16 @@ func (f *Fuzzer) createTestChain() (*chain.TestChain, error) {
 		}
 	}
 
+	for i := range f.config.Fuzzing.TargetContracts {
+		if len(f.config.Fuzzing.TargetContractsBalances) > i {
+			contractBalance := new(big.Int).Set(f.config.Fuzzing.TargetContractsBalances[i])
+			targetAddress := CalculateContractAddress(f.deployer, uint64(i))
+			genesisAlloc[targetAddress] = core.GenesisAccount{
+				Balance: contractBalance,
+			}
+		}
+	}
+
 	// Create our test chain with our basic allocations and passed medusa's chain configuration
 	testChain, err := chain.NewTestChain(genesisAlloc, &f.config.Fuzzing.TestChainConfig)
 
@@ -384,6 +402,27 @@ func chainSetupFromCompilations(fuzzer *Fuzzer, testChain *chain.TestChain) (err
 			return fmt.Errorf("missing target contracts (update fuzzing.targetContracts in the project config " +
 				"or use the --target-contracts CLI flag)"), nil
 		}
+	}
+
+	if fuzzer.config.Fuzzing.UseHelperContract() {
+		block, err := testChain.PendingBlockCreate()
+		if err != nil {
+			return err, nil
+		}
+
+		// deploy helperContract
+		var executionTrace *executiontracer.ExecutionTrace
+		err, executionTrace, FuzzHelperContractAddr = deployHelperContract(fuzzer, testChain, block, []common.Address{})
+		if err != nil {
+			return err, executionTrace
+		}
+
+		// fmt.Println(FuzzHelperContractAddr)
+		fuzzer.baseValueSet.AddAddress(FuzzHelperContractAddr)
+		fuzzer.helperContract = FuzzHelperContractAddr
+
+		// attach helper contract
+		attachHelperContract(fuzzer)
 	}
 
 	// Loop for all contracts to deploy
@@ -416,13 +455,13 @@ func chainSetupFromCompilations(fuzzer *Fuzzer, testChain *chain.TestChain) (err
 
 				// If our project config has a non-zero balance for this target contract, retrieve it
 				contractBalance := big.NewInt(0)
-				if len(fuzzer.config.Fuzzing.TargetContractsBalances) > i {
-					contractBalance = new(big.Int).Set(fuzzer.config.Fuzzing.TargetContractsBalances[i])
-				}
+				// if len(fuzzer.config.Fuzzing.TargetContractsBalances) > i {
+				// 	contractBalance = new(big.Int).Set(fuzzer.config.Fuzzing.TargetContractsBalances[i])
+				// }
 
 				// Create a message to represent our contract deployment (we let deployments consume the whole block
 				// gas limit rather than use tx gas limit)
-				msg := calls.NewCallMessage(fuzzer.deployer, nil, 0, contractBalance, fuzzer.config.Fuzzing.BlockGasLimit, nil, nil, nil, msgData)
+				msg := calls.NewCallMessage(fuzzer.deployer, nil, uint64(i), contractBalance, fuzzer.config.Fuzzing.BlockGasLimit, nil, nil, nil, msgData)
 				msg.FillFromTestChainProperties(testChain)
 
 				// Create a new pending block we'll commit to chain
@@ -431,7 +470,6 @@ func chainSetupFromCompilations(fuzzer *Fuzzer, testChain *chain.TestChain) (err
 					return err, nil
 				}
 
-				// Add our transaction to the block
 				// Add our transaction to the block
 				err = testChain.PendingBlockAddTx(msg.ToCoreMessage())
 				if err != nil {
@@ -472,6 +510,7 @@ func chainSetupFromCompilations(fuzzer *Fuzzer, testChain *chain.TestChain) (err
 				// Record our deployed contract so the next config-specified constructor args can reference this
 				// contract by name.
 				deployedContractAddr[contractName] = block.MessageResults[0].Receipt.ContractAddress
+
 				// Flag that we found a matching compiled contract definition and deployed it, then exit out of this
 				// inner loop to process the next contract to deploy in the outer loop.
 				found = true
@@ -895,6 +934,16 @@ func (f *Fuzzer) printMetricsLoop() {
 			logBuffer.Append(", mem: ", colors.Bold, fmt.Sprintf("%v/%v MB", memoryUsedMB, memoryTotalMB), colors.Reset)
 			logBuffer.Append(", resets/s: ", colors.Bold, fmt.Sprintf("%d", uint64(float64(new(big.Int).Sub(workerStartupCount, lastWorkerStartupCount).Uint64())/secondsSinceLastUpdate)), colors.Reset)
 		}
+
+		if f.config.Fuzzing.UseBugDetector() {
+			bugs := f.corpus.BugMap().BugDetectionResult()
+			logBuffer.Append(fmt.Sprintf(", bugs (%d): [", len(bugs)), colors.Bold, colors.Reset)
+			for _, bug := range bugs {
+				logBuffer.Append(bug, ",", colors.Reset)
+			}
+			logBuffer.Append("]", colors.Bold, colors.Reset)
+		}
+
 		f.logger.Info(logBuffer.Elements()...)
 
 		// Update our delta tracking metrics

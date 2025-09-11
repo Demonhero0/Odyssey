@@ -7,6 +7,13 @@
             "postStateVarNames":["balance"],
             "str": "{post(balance)} < {ori(balance)} + 1000000000000000000",
             "format": "cond({post(balance)} > {ori(balance)}, {post(balance)} < {ori(balance)} + 1000000000000000000, 1000000000000000000)"
+        },
+        "moreBalance": {
+            "level": "warning",
+            "preStateVarNames": ["balance"],
+            "postStateVarNames":["balance"],
+            "str": "{post(balance)} < {pre(balance)} + 100000000000000",
+            "format": "{post(balance)} < {pre(balance)} + 100000000000000"
         }
     }
 }
