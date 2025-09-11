@@ -52,7 +52,7 @@
             },
             "invariantChecking": {
                 "enabled": true,
-                "jsonPath": "/home/sujzh3/smartfuzz/smartfuzz/tmp_midas/common_inv.json",
+                "jsonPath": "../common_inv.json",
                 "invariantGuided": false
             }
         },
