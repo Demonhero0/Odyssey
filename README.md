@@ -89,4 +89,4 @@ Running the example case.
 ```
 
 ## Dataset
-The dataset is stored in `./data`, where `dapps.csv` is the list of dapps and `dataset` contains the `config.json` of each dapp.
+The dataset is stored in `./data`, where `real_world_hacking_dataset.csv` is the list of dapps and `dataset` contains the `config.json` of each dapp.
