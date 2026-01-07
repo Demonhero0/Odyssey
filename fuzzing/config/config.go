@@ -408,8 +408,13 @@ type MetricRecordConfig struct {
 }
 
 type BugDetectionConfig struct {
-	Enabled    bool `json:"enabled"`
-	Reentrancy bool `json:"reentrancy"`
+	Enabled            bool `json:"enabled"`
+	IntegerOverflow    bool `json:"integerOverflow"`
+	Reentrancy         bool `json:"reentrancy"`
+	EtherLeaking       bool `json:"etherLeaking"`
+	Suicidal           bool `json:"suicidal"`
+	BlockDependency    bool `json:"blockDependency"`
+	UnsafeDelegateCall bool `json:"unsafeDelegateCall"`
 }
 
 type MetricLogConfig struct {

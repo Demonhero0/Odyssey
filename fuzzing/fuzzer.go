@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/crytic/medusa/fuzzing/bugdetector"
 	"github.com/crytic/medusa/fuzzing/executiontracer"
 	"github.com/crytic/medusa/fuzzing/invariant"
 
@@ -879,6 +880,9 @@ func (f *Fuzzer) Stop() {
 func (f *Fuzzer) printMetricsLoop() {
 	// Define our start time
 	startTime := time.Now()
+
+	// record the start time for bug detector
+	bugdetector.StartTimeForBugDetector = time.Now()
 
 	// Define cached variables for our metrics to calculate deltas.
 	lastCallsTested := big.NewInt(0)

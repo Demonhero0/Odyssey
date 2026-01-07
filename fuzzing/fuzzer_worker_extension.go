@@ -52,10 +52,27 @@ func (fw *FuzzerWorker) initTestChain(testChain *chain.TestChain) {
 		testChain.AddTracer(fw.stateTracer, true, false)
 	}
 
-	// for detecting bugs
+	// attach bug detector
 	if fw.fuzzer.config.Fuzzing.UseBugDetector() {
-		fw.bugDetectorTracer = bugdetector.NewBugDetectorTracer(fw.fuzzer.helperContract)
+		fw.bugDetectorTracer = bugdetector.NewBugDetectorTracer(fw.fuzzer.helperContract, &fw.fuzzer.config.Fuzzing.BugDetectionConfig)
 		testChain.AddTracer(fw.bugDetectorTracer, true, false)
+
+		// set original ether for ether leaking
+		if fw.fuzzer.config.Fuzzing.BugDetectionConfig.EtherLeaking {
+			fw.bugDetectorTracer.SetOriginalEther(fw.fuzzer.config.Fuzzing.SenderAddressesBalances)
+		}
+
+		if fw.fuzzer.config.Fuzzing.BugDetectionConfig.EtherLeaking || fw.fuzzer.config.Fuzzing.BugDetectionConfig.UnsafeDelegateCall {
+			var ads []common.Address
+			for _, addr := range fw.fuzzer.config.Fuzzing.SenderAddresses {
+				ads = append(ads, common.HexToAddress(addr))
+			}
+			if fw.fuzzer.helperContract != common.HexToAddress("0x") {
+				ads = append(ads, fw.fuzzer.helperContract)
+			}
+
+			fw.bugDetectorTracer.SetAdversarialAddresses(ads)
+		}
 	}
 
 	// for debug

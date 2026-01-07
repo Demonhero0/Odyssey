@@ -25,6 +25,15 @@
             "stateEnabled": false,
             "slotEnabled": false
         },
+        "bugDetectionConfig": {
+            "enabled": true,
+            "integerOverflow": true,
+            "reentrancy": true,
+            "etherLeaking": true,
+            "suicidal": true,
+            "blockDependency": true,
+            "unsafeDelegateCall": true
+        },
         "targetContracts": [],
         "targetContractsBalances": [
             "0x56bc75e2d63100000"

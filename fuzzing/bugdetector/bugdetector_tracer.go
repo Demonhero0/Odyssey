@@ -2,17 +2,19 @@ package bugdetector
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/crytic/medusa/chain/types"
-	"github.com/crytic/medusa/logging"
+	"github.com/crytic/medusa/fuzzing/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/holiman/uint256"
 )
 
 // bugDetectorTracerResultsKey describes the key to use when storing tracer results in call message results,
 // or when querying them.
 const bugDetectorTracerResultsKey = "BugDetectorTracerResults"
+
+var StartTimeForBugDetector time.Time
 
 // GetBugDetectorTracerResults obtains BugMap stored by a BugDetectorTracer from message results.
 // This is nil if no BugMap were recorded by a tracer (e.g. BugDetectorTracer was not attached during
@@ -37,7 +39,6 @@ func RemoveBugDetectorTracerResults(messageResults *types.MessageResults) {
 // BugDetectorTracer implements vm.EVMLogger to collect information such as coverage maps
 // for fuzzing campaigns from EVM execution traces.
 type BugDetectorTracer struct {
-	helperContract common.Address
 
 	// env is the EVM environment for this call frame.
 	env *vm.EVM
@@ -53,6 +54,17 @@ type BugDetectorTracer struct {
 
 	// callDepth refers to the current EVM depth during tracing.
 	callDepth uint64
+
+	// config records the configures for bug detector
+	config *config.BugDetectionConfig
+
+	// originalEther is recording the orignal balance of ether, for ether leaking
+	originalEther *big.Int
+
+	// adversarial addresses
+	adversarialAddresses []common.Address
+
+	helperContract common.Address
 }
 
 // bugDetectorTracerCallFrameState tracks state across call frames in the tracer.
@@ -61,31 +73,37 @@ type bugDetectorTracerCallFrameState struct {
 	create bool
 
 	// call context
-	from       common.Address
-	to         common.Address
-	isContract bool
+	from        common.Address
+	to          common.Address
+	codeAddress common.Address
+	isContract  bool
 
-	// token transfer flag, including ether transfer and ERC20 transfer
-	tokenTransferList []TokenTransfer
+	// taint analyzer
+	taintAnalyzer *TaintAnalyzer
 
-	// storageWriteSet
-	pendingStorageWriteSet *StorageSet
-	pendingStorageReadSet  *StorageSet
+	// has selfdestruct in sub call
+	selfdestructPoints map[string]bool
 
-	// operation index
-	operationIndex uint64
+	// has ehterleaking in sub call
+	etherleakingPoints map[string]bool
 
-	// has overflow
-	overflowPoints map[uint64]bool
+	// has overflow in sub call
+	overflowPoints map[string]bool
+
+	// for reentrancy
+	sloadPoints               map[string]TaintStorageSlot
+	taintedCallPoints         map[string][]string // []string records the sloadPoints being used in call
+	isTouchedAdversialAddress bool
+	taintedJUMPIPoints        map[string][]string
 }
 
 // NewBugDetectorTracer returns a new BugDetectorTracer.
-func NewBugDetectorTracer(helperContract common.Address) *BugDetectorTracer {
+func NewBugDetectorTracer(helperContract common.Address, config *config.BugDetectionConfig) *BugDetectorTracer {
 	tracer := &BugDetectorTracer{
 		helperContract:  helperContract,
 		bugMap:          NewBugMap(),
 		callFrameStates: make([]*bugDetectorTracerCallFrameState, 0),
-		// storageWriteSet: NewStorageSet(),
+		config:          config,
 	}
 	return tracer
 }
@@ -108,30 +126,62 @@ func (t *BugDetectorTracer) CaptureStart(env *vm.EVM, from common.Address, to co
 
 	// Create our state tracking struct for this frame.
 	t.callFrameStates = append(t.callFrameStates, &bugDetectorTracerCallFrameState{
-		create:                 create,
-		from:                   from,
-		to:                     to,
-		pendingStorageWriteSet: NewStorageSet(),
-		pendingStorageReadSet:  NewStorageSet(),
-		overflowPoints:         make(map[uint64]bool),
+		create:             create,
+		from:               from,
+		to:                 to,
+		codeAddress:        to,
+		taintAnalyzer:      NewTaintAnalyzer(),
+		overflowPoints:     make(map[string]bool),
+		etherleakingPoints: make(map[string]bool),
+		selfdestructPoints: make(map[string]bool),
+		taintedCallPoints:  make(map[string][]string),
+		sloadPoints:        make(map[string]TaintStorageSlot),
+		taintedJUMPIPoints: make(map[string][]string),
 	})
 }
 
 // CaptureEnd is called after a call to finalize tracing completes for the top of a call frame, as defined by vm.EVMLogger.
 func (t *BugDetectorTracer) CaptureEnd(output []byte, gasUsed uint64, err error) {
-	// If we encountered an error in this call frame, mark all dataflow as reverted.
-	if err != nil {
-		_, revertErr := t.callFrameStates[t.callDepth].pendingStorageWriteSet.RevertAll()
-		if revertErr != nil {
-			logging.GlobalLogger.Panic("Dataflow tracer failed to update revert dataflow set during capture end", revertErr)
-		}
+	if err == nil {
+		confirm_suicidal(t)
+		confirm_etherleaking(t)
+		confirm_overflow(t)
 	}
+	// Pop the state tracking struct for this call frame off the stack.
+	t.callFrameStates = t.callFrameStates[:t.callDepth]
+}
 
-	// check bugs
-	t.checkBugs(err)
+// CaptureExit is called upon exiting of the call frame, as defined by vm.EVMLogger.
+func (t *BugDetectorTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
+
+	if err == nil {
+		// catch candidated etherleaking
+		detect_etherleaking(t)
+
+		// handle the status for reentrancy
+		isTouchedAdversialAddress(t)
+
+		// return bugs
+		lastCall := t.callFrameStates[len(t.callFrameStates)-1]
+		parentCall := t.callFrameStates[len(t.callFrameStates)-2]
+		for id := range lastCall.etherleakingPoints {
+			parentCall.etherleakingPoints[id] = true
+		}
+		for id := range lastCall.overflowPoints {
+			parentCall.overflowPoints[id] = true
+		}
+		for id := range lastCall.selfdestructPoints {
+			parentCall.selfdestructPoints[id] = true
+		}
+		// return some status
+		parentCall.isTouchedAdversialAddress = parentCall.isTouchedAdversialAddress || lastCall.isTouchedAdversialAddress
+	}
 
 	// Pop the state tracking struct for this call frame off the stack.
 	t.callFrameStates = t.callFrameStates[:t.callDepth]
+
+	// Decrease our call depth now that we've exited a call frame.
+	t.callDepth--
 }
 
 // CaptureEnter is called upon entering of the call frame, as defined by vm.EVMLogger.
@@ -141,113 +191,58 @@ func (t *BugDetectorTracer) CaptureEnter(typ vm.OpCode, from common.Address, to 
 
 	// Create our state tracking struct for this frame.
 	t.callFrameStates = append(t.callFrameStates, &bugDetectorTracerCallFrameState{
-		create:                 typ == vm.CREATE || typ == vm.CREATE2,
-		from:                   from,
-		to:                     to,
-		pendingStorageWriteSet: NewStorageSet(),
-		pendingStorageReadSet:  NewStorageSet(),
-		overflowPoints:         make(map[uint64]bool),
+		create:             typ == vm.CREATE || typ == vm.CREATE2,
+		from:               from,
+		to:                 to,
+		codeAddress:        to,
+		taintAnalyzer:      NewTaintAnalyzer(),
+		overflowPoints:     make(map[string]bool),
+		etherleakingPoints: make(map[string]bool),
+		selfdestructPoints: make(map[string]bool),
+		taintedCallPoints:  make(map[string][]string),
+		sloadPoints:        make(map[string]TaintStorageSlot),
+		taintedJUMPIPoints: make(map[string][]string),
 	})
 }
 
-// CaptureExit is called upon exiting of the call frame, as defined by vm.EVMLogger.
-func (t *BugDetectorTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
-	// If we encountered an error in this call frame, mark all storage-write as reverted.
-	if err != nil {
-		_, revertErr := t.callFrameStates[t.callDepth].pendingStorageWriteSet.RevertAll()
-		if revertErr != nil {
-			logging.GlobalLogger.Panic("Dataflow tracer failed to update revert dataflow set during capture exit", revertErr)
-		}
-	}
-
-	// Commit all our dataflow sets up one call frame.
-	_, _, updateErr := t.callFrameStates[t.callDepth-1].pendingStorageWriteSet.Update(t.callFrameStates[t.callDepth].pendingStorageWriteSet)
-	if updateErr != nil {
-		logging.GlobalLogger.Panic("Dataflow tracer failed to update dataflow set during capture exit", updateErr)
-	}
-
-	// check bugs
-	t.checkBugs(err)
-
-	// Pop the state tracking struct for this call frame off the stack.
-	t.callFrameStates = t.callFrameStates[:t.callDepth]
-
-	// Decrease our call depth now that we've exited a call frame.
-	t.callDepth--
-}
-
 // CaptureState records data from an EVM state update, as defined by vm.EVMLogger.
-func (t *BugDetectorTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmErr error) {
+func (t *BugDetectorTracer) CaptureState(pc uint64, vmOp vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmErr error) {
 	// Obtain our call frame state tracking struct
 	callFrameState := t.callFrameStates[t.callDepth]
 
-	callFrameState.isContract = true
-
-	switch op {
-	case vm.SSTORE:
-		slot := scope.Stack.Back(0)
-		val := scope.Stack.Back(1)
-		storageAddress := scope.Contract.Address()
-		codeAddress := scope.Contract.Address()
-		if scope.Contract.CodeAddr != nil {
-			codeAddress = *scope.Contract.CodeAddr
-		}
-		// Record storage write for this location in our storage-write set.
-		updateErr := callFrameState.pendingStorageWriteSet.SetReadOrWrite(storageAddress, slot, val, codeAddress, callFrameState.create, pc)
-		if updateErr != nil {
-			logging.GlobalLogger.Panic("Dataflow tracer failed to update dataflow set while tracing state", updateErr)
-		}
-	case vm.SLOAD:
-		slot := scope.Stack.Back(0)
-		storageAddress := scope.Contract.Address()
-		codeAddress := scope.Contract.Address()
-		if scope.Contract.CodeAddr != nil {
-			codeAddress = *scope.Contract.CodeAddr
-		}
-		val := uint256.NewInt(0).SetBytes(t.env.StateDB.GetState(storageAddress, common.Hash(slot.Bytes32())).Bytes())
-		// Record storage read for this location in our storage-read set.
-		updateErr := callFrameState.pendingStorageReadSet.SetReadOrWrite(storageAddress, slot, val, codeAddress, callFrameState.create, pc)
-		if updateErr != nil {
-			logging.GlobalLogger.Panic("Dataflow tracer failed to update dataflow set while tracing state", updateErr)
-		}
-	case vm.LOG0, vm.LOG1, vm.LOG2, vm.LOG3, vm.LOG4:
-		size := int(op - vm.LOG0)
-
-		stack := scope.Stack
-		stackData := stack.Data()
-
-		topics := make([]common.Hash, size)
-		for i := 0; i < size; i++ {
-			topic := stackData[len(stackData)-2-(i+1)]
-			topics[i] = common.Hash(topic.Bytes32())
-		}
-
-		// ERC20 transfer
-		if len(topics) > 0 && topics[0].String() == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" && len(topics) == 3 {
-			callFrameState.tokenTransferList = append(callFrameState.tokenTransferList, TokenTransfer{
-				From:  common.BytesToAddress(topics[1].Bytes()),
-				To:    common.BytesToAddress(topics[2].Bytes()),
-				Token: scope.Contract.Address(),
-			})
-		}
-	case vm.CALL:
-		// Ether transfer
-		value := scope.Stack.Back(2)
-		if value.Cmp(uint256.NewInt(0)) > 0 {
-			callFrameState.tokenTransferList = append(callFrameState.tokenTransferList, TokenTransfer{
-				From:   scope.Contract.Address(),
-				To:     common.BytesToAddress(scope.Stack.Back(1).Bytes()),
-				Token:  common.Address{},
-				Amount: uint256.NewInt(0).SetBytes(value.Bytes()),
-			})
-		}
+	if !callFrameState.isContract {
+		callFrameState.isContract = true
+		callFrameState.to = scope.Contract.Address() // the proxy address
+		callFrameState.codeAddress = *scope.Contract.CodeAddr
 	}
 
-	if is_overflow(op, scope) {
-		callFrameState.overflowPoints[pc] = true
+	op := byte(vmOp)
+
+	// handle integer overflow detection
+	if t.config.IntegerOverflow {
+		detect_overflow(t, pc, op, scope)
 	}
 
-	callFrameState.operationIndex = callFrameState.operationIndex + 1
+	// catch candidated suicidal
+	if t.config.Suicidal {
+		detect_suicidal(t, pc, op)
+	}
+
+	// handle block dependency detection
+	if t.config.BlockDependency {
+		detect_block_dependency(t, pc, op)
+	}
+
+	if t.config.Reentrancy {
+		detect_reentrancy(t, pc, op, scope)
+	}
+
+	if t.config.UnsafeDelegateCall {
+		detect_unsafe_delegatecall(t, pc, op, scope)
+	}
+
+	// handle taint analysis
+	callFrameState.taintAnalyzer.PropagateTaint(op, scope)
 }
 
 // CaptureFault records an execution fault, as defined by vm.EVMLogger.
@@ -262,9 +257,15 @@ func (t *BugDetectorTracer) CaptureTxEndSetAdditionalResults(results *types.Mess
 	results.AdditionalResults[bugDetectorTracerResultsKey] = t.bugMap
 }
 
-func (t *BugDetectorTracer) checkBugs(execution_err error) {
-	if execution_err == nil {
-		detect_reentrancy(t)
-		detect_overflow(t)
+func (t *BugDetectorTracer) SetOriginalEther(bs []*big.Int) {
+	t.originalEther = big.NewInt(0)
+	for _, b := range bs {
+		t.originalEther = new(big.Int).Add(t.originalEther, b)
+	}
+}
+
+func (t *BugDetectorTracer) SetAdversarialAddresses(ads []common.Address) {
+	for _, addr := range ads {
+		t.adversarialAddresses = append(t.adversarialAddresses, addr)
 	}
 }
