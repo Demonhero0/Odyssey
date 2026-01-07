@@ -30,17 +30,7 @@ func (s *ProgramPosition) String() string {
 type StorageSlot struct {
 	Address common.Address // contract address
 	Slot    *uint256.Int
-	Value   *uint256.Int
-}
-
-func (s *StorageSlot) SlotString() string {
-	var sb strings.Builder
-
-	sb.WriteString(s.Address.Hex())
-	sb.WriteString(":")
-	sb.WriteString(s.Slot.Hex())
-
-	return sb.String()
+	Value   *uint256.Int // value at the slot, if applicable
 }
 
 func (s *StorageSlot) String() string {
@@ -49,8 +39,6 @@ func (s *StorageSlot) String() string {
 	sb.WriteString(s.Address.Hex())
 	sb.WriteString(":")
 	sb.WriteString(s.Slot.Hex())
-	sb.WriteString(":")
-	sb.WriteString(s.Value.Hex())
 
 	return sb.String()
 }
@@ -66,6 +54,41 @@ func (s *StorageWrite) String() string {
 	sb.WriteString(s.Position.String())
 	sb.WriteString("-")
 	sb.WriteString(s.Variable.String())
+
+	return sb.String()
+}
+
+var (
+	slice0 = uint256.NewInt(uint64(1)).Lsh(uint256.NewInt(uint64(1)), 4)   // 2^4
+	slice1 = uint256.NewInt(uint64(1)).Lsh(uint256.NewInt(uint64(1)), 16)  // 2^16
+	slice2 = uint256.NewInt(uint64(1)).Lsh(uint256.NewInt(uint64(1)), 64)  // 2^64
+	slice3 = uint256.NewInt(uint64(1)).Lsh(uint256.NewInt(uint64(1)), 128) // 2^128
+)
+
+// mapping a value to a abstract bucket string
+func bucket(value *uint256.Int) string {
+	if value.Cmp(slice0) < 0 {
+		return "0-2^4"
+	} else if value.Cmp(slice1) < 0 {
+		return "2^4-2^16"
+	} else if value.Cmp(slice2) < 0 {
+		return "2^16-2^64"
+	} else if value.Cmp(slice3) < 0 {
+		return "2^64-2^128"
+	} else {
+		return "2^128-2^256"
+	}
+}
+
+func (s *StorageWrite) Bucket() string {
+	var sb strings.Builder
+
+	sb.WriteString(s.Position.String())
+	sb.WriteString("-")
+	sb.WriteString(s.Variable.String())
+
+	sb.WriteString("-")
+	sb.WriteString(bucket(s.Variable.Value))
 
 	return sb.String()
 }

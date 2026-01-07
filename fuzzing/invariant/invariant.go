@@ -100,6 +100,12 @@ func (im *InvariantMaps) VariableValueMap() map[string]map[string]uint64 {
 	return m
 }
 
+func (im *InvariantMaps) TotalStateVariables() int {
+	im.updateLock.Lock()
+	defer im.updateLock.Unlock()
+	return len(im.scopeMaps)
+}
+
 func (im *InvariantMaps) ShowScopeInvariants() {
 	im.updateLock.Lock()
 	defer im.updateLock.Unlock()
@@ -583,16 +589,6 @@ func (im *InvariantMaps) DumpSlot() DumpSlot {
 // 	}
 // 	return false
 // }
-
-func (im *InvariantMaps) TotalScope() int {
-	value, isExist := im.scopeMaps["0xA647ff3c36cFab592509E13860ab8c4F28781a66-rate()-0"]
-	if isExist {
-		return int(value.maxValue.Int64() - value.minValue.Int64())
-		// return len(value.valueSet)
-	} else {
-		return 0
-	}
-}
 
 func init() {
 	// for calcuating distance of violating invariant

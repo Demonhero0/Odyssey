@@ -909,23 +909,27 @@ func (f *Fuzzer) printMetricsLoop() {
 		logBuffer.Append(", calls: ", colors.Bold, fmt.Sprintf("%d (%d/sec)", callsTested, uint64(float64(new(big.Int).Sub(callsTested, lastCallsTested).Uint64())/secondsSinceLastUpdate)), colors.Reset)
 		logBuffer.Append(", seq/s: ", colors.Bold, fmt.Sprintf("%d", uint64(float64(new(big.Int).Sub(sequencesTested, lastSequencesTested).Uint64())/secondsSinceLastUpdate)), colors.Reset)
 		logBuffer.Append(", corpus: ", colors.Bold, fmt.Sprintf("%d", f.corpus.ActiveMutableSequenceCount()), colors.Reset)
-		logBuffer.Append(", state-scope: ", colors.Bold, fmt.Sprintf("%d", f.corpus.InvariantMaps().TotalScope()), colors.Reset)
 
 		if f.config.Fuzzing.UseCoverageTracing() {
 			c, t := f.corpus.CoverageMaps().TotalCodeCoverage(true, f.targetContractAddresses)
 			rate := float64(c) / float64(t)
-			logBuffer.Append(", code-coverage: ", colors.Bold, fmt.Sprintf("%f", rate), colors.Reset)
+			logBuffer.Append(", code-coverage: ", colors.Bold, fmt.Sprintf("%v (%.2f)", c, rate), colors.Reset)
 		}
 
 		if f.config.Fuzzing.UseBranchCoverageTracing() {
 			c, t := f.corpus.BranchCoverageMaps().TotalBranchCoverage(true, f.targetContractAddresses)
 			rate := float64(c) / float64(t)
-			logBuffer.Append(", branch-coverage: ", colors.Bold, fmt.Sprintf("%f", rate), colors.Reset)
+			logBuffer.Append(", branch-coverage: ", colors.Bold, fmt.Sprintf("%v (%.2f)", c, rate), colors.Reset)
 		}
 
 		if f.config.Fuzzing.UseStorageWriteTracing() {
 			c := f.corpus.StorageWriteSet().TotalStorageWriteCount(true)
 			logBuffer.Append(", storage-writes: ", colors.Bold, fmt.Sprintf("%d", c), colors.Reset)
+		}
+
+		if f.config.Fuzzing.StateGuidedConfig.EnabledStateGuided {
+			c := f.corpus.InvariantMaps().TotalStateVariables()
+			logBuffer.Append(", state-variables: ", colors.Bold, fmt.Sprintf("%d", c), colors.Reset)
 		}
 
 		// for on-chain fuzzing
@@ -964,7 +968,7 @@ func (f *Fuzzer) printMetricsLoop() {
 		}
 
 		// if f.config.Fuzzing.UseNewStateScope() {
-		f.corpus.InvariantMaps().ShowScopeInvariants()
+		// f.corpus.InvariantMaps().ShowScopeInvariants()
 		// }
 
 		// Sleep some time between print iterations

@@ -7,11 +7,11 @@
         "shrinkLimit": 500,
         "callSequenceLength": 50,
         "corpusDirectory": "",
-        "coverageEnabled": true,
+        "coverageEnabled": false,
         "stateGuidedConfig": {
             "enabledStateGuided": true,
             "enabledNewScope": true,
-            "enabledStateSelection": true,
+            "enabledStateSelection": false,
             "enabledStateDivision": true,
             "initUpdateBar": 6,
             "divisionPartNumber": 6,
@@ -19,9 +19,9 @@
             "enabledCompression": false
         },
         "metricRecordConfig": {
-            "coverageEnabled": false,
-            "branchCoverageEnabled": false,
-            "storageWriteEnabled": false,
+            "coverageEnabled": true,
+            "branchCoverageEnabled": true,
+            "storageWriteEnabled": true,
             "stateEnabled": false,
             "slotEnabled": false
         },
@@ -73,7 +73,7 @@
             }
         },
         "metricLogConfig": {
-            "enabled": true,
+            "enabled": false,
             "time_interval": 1,
             "time_log_file": "./time_log.json",
             "sequence_interval": 100,

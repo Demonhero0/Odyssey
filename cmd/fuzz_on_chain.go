@@ -169,12 +169,12 @@ func updateProjectConfigWithFuzzOnChainFlags(cmd *cobra.Command, projectConfig *
 	}
 
 	// Update state construction
-	if cmd.Flags().Changed("state-construction") {
-		projectConfig.Fuzzing.StateGuidedConfig.EnabledStateConstruction, err = cmd.Flags().GetBool("state-construction")
-		if err != nil {
-			return err
-		}
-	}
+	// if cmd.Flags().Changed("state-construction") {
+	// 	projectConfig.Fuzzing.StateGuidedConfig.EnabledStateConstruction, err = cmd.Flags().GetBool("state-construction")
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	// Update state division
 	if cmd.Flags().Changed("state-division") {
