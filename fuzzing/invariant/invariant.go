@@ -38,15 +38,15 @@ type InvariantMaps struct {
 	updateSlotLock sync.Mutex
 
 	// state guide config
-	enabledNewScope          bool
-	enabledStateConstruction bool
-	enabledStateDivision     bool
-	enabledStateDirection    bool
+	enabledNewScope bool
+	// enabledStateConstruction bool
+	enabledStateDivision  bool
+	enabledStateDirection bool
 }
 
 type direction struct {
 	changedValueList []*big.Int
-	count 		  uint64
+	count            uint64
 }
 
 // NewInvariantMaps initializes a new NewInvariantMaps object.
@@ -56,11 +56,23 @@ func NewInvariantMaps() *InvariantMaps {
 	return maps
 }
 
-func (im *InvariantMaps) InitInvariantMaps(enabledNewScope, enabledStateConstruction, enabledStateDivision, enabledStateDirection bool) {
+var initUpdateBar uint64 = 6
+var divisionPartNumber int = 6
+
+func (im *InvariantMaps) InitInvariantMaps(
+	enabledNewScope,
+	// enabledStateConstruction,
+	enabledStateDivision,
+	enabledStateDirection bool,
+	setInitUpdateBar uint64,
+	setDivisionPartNumber int) {
 	im.enabledNewScope = enabledNewScope
-	im.enabledStateConstruction = enabledStateConstruction
+	// im.enabledStateConstruction = enabledStateConstruction
 	im.enabledStateDivision = enabledStateDivision
 	im.enabledStateDirection = enabledStateDirection
+
+	initUpdateBar = setInitUpdateBar
+	divisionPartNumber = setDivisionPartNumber
 }
 
 // Reset clears the coverage state for the InvariantMaps.
@@ -93,10 +105,10 @@ func (im *InvariantMaps) ShowScopeInvariants() {
 	defer im.updateLock.Unlock()
 	fmt.Println("ShowScopeInvariants------------")
 	for name, scope := range im.scopeMaps {
-		if scope.needShown {
-			fmt.Printf("[%s]%s : [%s, %s], length = %d;\n", scope.source, name, scope.minValue, scope.maxValue, len(scope.valueSet))
-			scope.needShown = false
-		}
+		// if scope.needShown {
+		fmt.Printf("[%s]%s : [%s, %s], length = %d;\n", scope.source, name, scope.minValue, scope.maxValue, len(scope.valueSet))
+		// scope.needShown = false
+		// }
 	}
 	fmt.Println("ShowScopeInvariants------------")
 }
@@ -240,7 +252,7 @@ func (im *InvariantMaps) UpdateDirection(oldStateVariables, stateVariables map[s
 	if directionItem, ok := im.directionMap[directionStr]; !ok {
 		im.directionMap[directionStr] = direction{
 			changedValueList: append([]*big.Int{}, changedValueList...),
-			count : 1,
+			count:            1,
 		}
 		flag = true
 	} else {
@@ -257,7 +269,7 @@ func (im *InvariantMaps) UpdateDirection(oldStateVariables, stateVariables map[s
 		im.directionMap[directionStr] = directionItem
 	}
 
-	return flag && im.enabledStateDirection , directionStr
+	return flag && im.enabledStateDirection, directionStr
 }
 
 func (im *InvariantMaps) DirectionMap() map[string]uint64 {
@@ -269,9 +281,6 @@ func (im *InvariantMaps) DirectionMap() map[string]uint64 {
 	}
 	return m
 }
-
-const initUpdateBar uint64 = 6
-const divisionPartNumber int = 6
 
 type ScopeInvariant struct {
 	maxValue     *big.Int

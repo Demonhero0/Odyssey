@@ -21,8 +21,9 @@ type StateExtractor struct {
 	stateVariablesType map[string]string
 
 	// for sensitive variable
-	slotToViewMethodMap map[string]map[string]any
-	candidateViewMethod map[string]any
+	slotToViewMethodMap   map[string]map[string]any
+	candidateViewMethod   map[string]any
+	enabledStateSelection bool
 }
 
 type ViewMethodCacheItem struct {
@@ -67,6 +68,7 @@ func (s *StateExtractor) initStateVariablesFromViewMethods() error {
 				}
 			} else {
 				// deal with sensitive variables
+				// deal with the view function with address type parameter
 				if len(method.Inputs) == 1 && method.Inputs[0].Type.T == abi.AddressTy {
 					var users = []common.Address{worker.fuzzer.senders[0], FuzzHelperContractAddr}
 					for _, user := range users {
@@ -114,6 +116,7 @@ func (s *StateExtractor) initStateVariablesFromViewMethods() error {
 
 			if _, ok := s.viewMethodCache[addressMethodSig]; ok {
 				// s.stateVariablesType[addressMethodSig] = "token"
+				// if using selection, regard all variables as "sensitive-candidate" and wait for changing
 				s.stateVariablesType[addressMethodSig] = "sensitive-candidate"
 				s.candidateViewMethod[addressMethodSig] = nil
 
@@ -131,6 +134,15 @@ func (s *StateExtractor) initStateVariablesFromViewMethods() error {
 			}
 		}
 	}
+
+	// if not using selection, regard all variables as "sensitive" for analysis
+	if !s.enabledStateSelection {
+		for addressMethodSig := range s.stateVariablesType {
+			s.stateVariablesType[addressMethodSig] = "sensitive"
+			delete(s.candidateViewMethod, addressMethodSig)
+		}
+	}
+
 	return nil
 }
 
@@ -161,46 +173,36 @@ func (s *StateExtractor) getStateVariables(callSequenceElement *calls.CallSequen
 	}
 
 	// update sensitive variables
-	if len(s.candidateViewMethod) > 0 {
-		block := callSequenceElement.ChainReference.Block
-		messageResult := block.MessageResults[callSequenceElement.ChainReference.TransactionIndex]
-		stateTraceResult := messageResult.AdditionalResults[invariant.StateTraceResultKey].(invariant.StateTraceResult)
-		if stateTraceResult.IsTransfer {
-			for address := range stateTraceResult.SloadSlot {
-				for slot := range stateTraceResult.SloadSlot[address] {
-					id := fmt.Sprintf("%s-%s", strings.ToLower(address.String()), strings.ToLower(slot.String()))
-					if _, ok := s.slotToViewMethodMap[id]; ok {
-						for addressMethodSig := range s.slotToViewMethodMap[id] {
-							if _, ok1 := s.candidateViewMethod[addressMethodSig]; ok1 {
-								s.stateVariablesType[addressMethodSig] = "sensitive"
-								delete(s.candidateViewMethod, addressMethodSig)
+	if s.enabledStateSelection {
+		if len(s.candidateViewMethod) > 0 {
+			block := callSequenceElement.ChainReference.Block
+			messageResult := block.MessageResults[callSequenceElement.ChainReference.TransactionIndex]
+			stateTraceResult := messageResult.AdditionalResults[invariant.StateTraceResultKey].(invariant.StateTraceResult)
+			if stateTraceResult.IsTransfer {
+				// if stateTraceResult.IsTransfer {
+				for address := range stateTraceResult.SloadSlot {
+					for slot := range stateTraceResult.SloadSlot[address] {
+						id := fmt.Sprintf("%s-%s", strings.ToLower(address.String()), strings.ToLower(slot.String()))
+						if _, ok := s.slotToViewMethodMap[id]; ok {
+							for addressMethodSig := range s.slotToViewMethodMap[id] {
+								if _, ok1 := s.candidateViewMethod[addressMethodSig]; ok1 {
+									s.stateVariablesType[addressMethodSig] = "sensitive"
+									delete(s.candidateViewMethod, addressMethodSig)
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-
-	} else {
-		// s.worker.stateTracer = &invariant.StateTracer{}
 	}
 
 	for name, t := range s.stateVariablesType {
 		if viewMethodCacheItem, ok := s.viewMethodCache[name]; ok {
-			if t == "common" {
+			if t == "sensitive" {
 				stateValues, err := s.getStateVariablesFromViewMethod(s.worker, viewMethodCacheItem.address, viewMethodCacheItem.data, viewMethodCacheItem.method)
 				if err != nil {
-				}
-				for index, stateValue := range stateValues {
-					if stateValue != nil && isConsiderType(stateValue.Type) {
-						stateValue.Source = t
-						stateValueName := fmt.Sprintf("%s-%d", name, index)
-						stateVariables[stateValueName] = stateValue
-					}
-				}
-			} else if t == "sensitive" || t == "token" {
-				stateValues, err := s.getStateVariablesFromViewMethod(s.worker, viewMethodCacheItem.address, viewMethodCacheItem.data, viewMethodCacheItem.method)
-				if err != nil {
+					// panic(err)
 				}
 				for index, stateValue := range stateValues {
 					if stateValue != nil {
@@ -209,11 +211,40 @@ func (s *StateExtractor) getStateVariables(callSequenceElement *calls.CallSequen
 						stateVariables[stateValueName] = stateValue
 					}
 				}
-			} else {
-				// fmt.Println(s.viewMethodCache[name])
 			}
+
+			// if t == "common" {
+			// 	stateValues, err := s.getStateVariablesFromViewMethod(s.worker, viewMethodCacheItem.address, viewMethodCacheItem.data, viewMethodCacheItem.method)
+			// 	if err != nil {
+			// 	}
+			// 	for index, stateValue := range stateValues {
+			// 		if stateValue != nil && isConsiderType(stateValue.Type) {
+			// 			stateValue.Source = t
+			// 			stateValueName := fmt.Sprintf("%s-%d", name, index)
+			// 			stateVariables[stateValueName] = stateValue
+			// 		}
+			// 	}
+			// } else if t == "sensitive" || t == "token" {
+			// 	stateValues, err := s.getStateVariablesFromViewMethod(s.worker, viewMethodCacheItem.address, viewMethodCacheItem.data, viewMethodCacheItem.method)
+			// 	if err != nil {
+			// 	}
+			// 	for index, stateValue := range stateValues {
+			// 		if stateValue != nil {
+			// 			stateValue.Source = t
+			// 			stateValueName := fmt.Sprintf("%s-%d", name, index)
+			// 			stateVariables[stateValueName] = stateValue
+			// 		}
+			// 	}
+			// } else {
+			//
+			// }
 		}
 	}
+
+	// for stateId := range stateVariables {
+	// 	fmt.Println(stateId)
+	// }
+	// fmt.Println("-------------------")
 
 	return stateVariables, nil
 }
@@ -509,22 +540,9 @@ func (worker *FuzzerWorker) genShrinkRequestWithStateVariables(callSequence call
 		return nil, err
 	}
 
-	// for tracing slots
-	var isNewSlotValue bool
-	// if worker.fuzzer.config.Fuzzing.UseSlotTracing() {
-	// 	isNewSlotValue, err = worker.fuzzer.corpus.CheckSequenceSlotsAndUpdate(callSequence, worker.getNewCorpusCallSequenceWeight(), true)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
 	var isNewScope bool
 	if worker.fuzzer.config.Fuzzing.StateGuidedConfig.EnabledStateGuided {
-		if !worker.fuzzer.config.Fuzzing.StateGuidedConfig.EnabledStateConstruction {
-			isNewScope = isNewSlotValue
-		} else {
-			isNewScope = isNewStateValue
-		}
+		isNewScope = isNewStateValue
 	}
 
 	if isNewScope {

@@ -120,11 +120,12 @@ func newFuzzerWorker(fuzzer *Fuzzer, workerIndex int, randomProvider *rand.Rand)
 	// to deal with extract smart contract state
 	worker.contractViewMethod = make(map[common.Address]map[string]abi.Method)
 	worker.stateExtractor = &StateExtractor{
-		worker:              worker,
-		viewMethodCache:     make(map[string]*ViewMethodCacheItem),
-		stateVariablesType:  make(map[string]string),
-		slotToViewMethodMap: make(map[string]map[string]any),
-		candidateViewMethod: make(map[string]any),
+		worker:                worker,
+		viewMethodCache:       make(map[string]*ViewMethodCacheItem),
+		stateVariablesType:    make(map[string]string),
+		slotToViewMethodMap:   make(map[string]map[string]any),
+		candidateViewMethod:   make(map[string]any),
+		enabledStateSelection: fuzzer.config.Fuzzing.StateGuidedConfig.EnabledStateSelection,
 	}
 	return worker, nil
 }

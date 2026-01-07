@@ -1,6 +1,6 @@
 {
     "fuzzing": {
-        "workers": 10,
+        "workers": 1,
         "workerResetLimit": 50,
         "timeout": 600,
         "testLimit": 0,
@@ -9,10 +9,12 @@
         "corpusDirectory": "",
         "coverageEnabled": true,
         "stateGuidedConfig": {
-            "enabledStateGuided": false,
+            "enabledStateGuided": true,
             "enabledNewScope": true,
-            "enabledStateConstruction": true,
+            "enabledStateSelection": true,
             "enabledStateDivision": true,
+            "initUpdateBar": 6,
+            "divisionPartNumber": 6,
             "enabledStateDirection": true,
             "enabledCompression": false
         },

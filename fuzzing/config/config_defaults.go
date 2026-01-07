@@ -47,10 +47,10 @@ func GetDefaultProjectConfig(platform string) (*ProjectConfig, error) {
 			CorpusDirectory:         "",
 			CoverageEnabled:         false,
 			StateGuidedConfig: StateGuidedConfig{
-				EnabledStateGuided:       false,
-				EnabledStateConstruction: false,
-				EnabledStateDivision:     false,
-				EnabledCompression:       false,
+				EnabledStateGuided: false,
+				// EnabledStateConstruction: false,
+				EnabledStateDivision: false,
+				EnabledCompression:   false,
 			},
 			MetricRecordConfig: MetricRecordConfig{
 				CoverageEnabled: true,

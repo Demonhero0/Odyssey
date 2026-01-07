@@ -358,9 +358,11 @@ func (f *Fuzzer) StartOnChain() error {
 	if f.config.Fuzzing.UseStateGuided() {
 		f.corpus.InvariantMaps().InitInvariantMaps(
 			f.config.Fuzzing.StateGuidedConfig.EnabledNewScope,
-			f.config.Fuzzing.StateGuidedConfig.EnabledStateConstruction,
+			// f.config.Fuzzing.StateGuidedConfig.EnabledStateConstruction,
 			f.config.Fuzzing.StateGuidedConfig.EnabledStateDivision,
 			f.config.Fuzzing.StateGuidedConfig.EnabledStateDirection,
+			f.config.Fuzzing.StateGuidedConfig.InitUpdateBar,
+			f.config.Fuzzing.StateGuidedConfig.DivisionPartNumber,
 		)
 	}
 

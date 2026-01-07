@@ -737,9 +737,12 @@ func (f *Fuzzer) Start() error {
 	if f.config.Fuzzing.UseStateGuided() {
 		f.corpus.InvariantMaps().InitInvariantMaps(
 			f.config.Fuzzing.StateGuidedConfig.EnabledNewScope,
-			f.config.Fuzzing.StateGuidedConfig.EnabledStateConstruction,
+			// f.config.Fuzzing.StateGuidedConfig.EnabledStateConstruction,
+			// f.config.Fuzzing.StateGuidedConfig.EnabledStateSelection,
 			f.config.Fuzzing.StateGuidedConfig.EnabledStateDivision,
 			f.config.Fuzzing.StateGuidedConfig.EnabledStateDirection,
+			f.config.Fuzzing.StateGuidedConfig.InitUpdateBar,
+			f.config.Fuzzing.StateGuidedConfig.DivisionPartNumber,
 		)
 	}
 
@@ -961,11 +964,11 @@ func (f *Fuzzer) printMetricsLoop() {
 		}
 
 		// if f.config.Fuzzing.UseNewStateScope() {
-		// 	f.corpus.InvariantMaps().ShowScopeInvariants()
+		f.corpus.InvariantMaps().ShowScopeInvariants()
 		// }
 
 		// Sleep some time between print iterations
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 1)
 	}
 }
 

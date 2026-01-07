@@ -372,13 +372,14 @@ func (p *ProjectConfig) Validate() error {
 }
 
 type StateGuidedConfig struct {
-	EnabledStateGuided       bool `json:"enabledStateGuided"`
-	EnabledNewScope          bool `json:"enabledNewScope"`
-	EnabledStateConstruction bool `json:"enabledStateConstruction"`
-	EnabledStateDivision     bool `json:"enabledStateDivision"`
-	EnabledStateDirection    bool `json:"enabledStateDirection"`
-	EnabledCompression       bool `json:"enabledCompression"`
-	CorpusSize               bool `json:corpusSize`
+	EnabledStateGuided    bool   `json:"enabledStateGuided"`
+	EnabledNewScope       bool   `json:"enabledNewScope"`
+	EnabledStateSelection bool   `json:"enabledStateSelection"`
+	EnabledStateDivision  bool   `json:"enabledStateDivision"`
+	InitUpdateBar         uint64 `json:"initUpdateBar"`
+	DivisionPartNumber    int    `json:"divisionPartNumber"`
+	EnabledStateDirection bool   `json:"enabledStateDirection"`
+	EnabledCompression    bool   `json:"enabledCompression"`
 }
 
 type VariableRecoverConfig struct {
