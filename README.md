@@ -4,15 +4,9 @@ A state-aware fuzzer for smart contract.
 
 ## Setup
 
-Clone the git project.
+Prepare on-chain execution backend in `geth-onchain-execution`
 ```
-git clone --recurse-submodules git@github.com:Demonhero0/Odyssey.git
-```
-
-Change the branch in `geth-onchain-execution`
-```
-cd geth-onchain-execution
-git checkout onchain
+unzip -o geth-onchain-execution.zip -d geth-onchain-execution
 ```
 
 Installing "crytic-compile"
@@ -95,4 +89,4 @@ Running the example case.
 ```
 
 ## Dataset
-The dataset is stored in `./data`, where `dapps.csv` is the list of dapps and `dataset` contains the `config.json` of each dapp.
+The dataset is stored in `./data`, where `real_world_hacking_dataset.csv` is the list of dapps and `dataset` contains the `config.json` of each dapp.
