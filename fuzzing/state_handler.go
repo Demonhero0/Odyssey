@@ -406,9 +406,9 @@ func getStateValue(arg abi.Argument, retVal interface{}) *invariant.StateValue {
 	case abi.SliceTy:
 		// fmt.Println("abi.SliceTy")
 	case abi.ArrayTy:
-		fmt.Println("abi.ArrayTy")
+		// fmt.Println("abi.ArrayTy")
 	case abi.TupleTy:
-		fmt.Println("tuple")
+		// fmt.Println("tuple")
 	case abi.AddressTy:
 		return &invariant.StateValue{
 			Value: retVal.(common.Address),
@@ -435,9 +435,9 @@ func getStateValue(arg abi.Argument, retVal interface{}) *invariant.StateValue {
 			Type:  "hash",
 		}
 	case abi.FixedPointTy:
-		fmt.Println("abi.FixedPointTy")
+		// fmt.Println("abi.FixedPointTy")
 	case abi.FunctionTy:
-		fmt.Println("abi.FunctionTy")
+		// fmt.Println("abi.FunctionTy")
 	default:
 		panic("Invalid type")
 	}
@@ -467,7 +467,7 @@ func getArgumentFromString(arg abi.Argument, value string) interface{} {
 	case abi.AddressTy:
 		return common.HexToAddress(value)
 	default:
-		fmt.Println(arg.Type.GetType())
+		// fmt.Println(arg.Type.GetType())
 		panic("not support type in getArgumentFromString")
 	}
 }
