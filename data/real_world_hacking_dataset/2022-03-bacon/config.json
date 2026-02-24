@@ -1,0 +1,95 @@
+{
+    "fuzzing": {
+        "workers": 5,
+        "workerResetLimit": 50,
+        "timeout": 3600,
+        "testLimit": 0,
+        "shrinkLimit": 500,
+        "callSequenceLength": 50,
+        "corpusDirectory": "",
+        "coverageEnabled": false,
+        "stateGuidedConfig": {
+            "enabledStateGuided": true,
+            "enabledNewScope": true,
+            "enabledStateConstruction": true,
+            "enabledStateDivision": true,
+            "enabledStateDirection": true,
+            "enabledCompression": false
+        },
+        "metricRecordConfig": {
+            "coverageEnabled": false,
+            "branchCoverageEnabled": false,
+            "storageWriteEnabled": false,
+            "stateEnabled": false,
+            "slotEnabled": false
+        },
+        "targetContracts": [],
+        "targetContractsBalances": [
+            "0x56bc75e2d63100000"
+        ],
+        "constructorArgs": {},
+        "deployerAddress": "0x30000",
+        "senderAddresses": [
+            "0x10000"
+        ],
+        "senderAddressesBalances": [
+            "0x56bc75e2d63100000"
+        ],
+        "blockNumberDelayMax": 60480,
+        "blockTimestampDelayMax": 604800,
+        "blockGasLimit": 125000000,
+        "transactionGasLimit": 12500000,
+        "testing": {
+            "stopOnFailedTest": true,
+            "stopOnNoTests": false,
+            "testAllContracts": true,
+            "traceAll": true,
+            "contractCallConfig": {
+                "EnabledContractCall": true,
+                "ContractCallProbability": 0.5,
+                "EnabledInternalCall": true,
+                "internalCallConfig": 0.5
+            },
+            "invariantChecking": {
+                "enabled": true,
+                "jsonPath": "../common_inv.json",
+                "invariantGuided": false
+            }
+        },
+        "onChainFuzzingConfig": {
+            "isOnChain": true,
+            "targetAddresses": ["0xb8919522331C59f5C16bDfAA6A121a6E03A91F62", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"],
+            "blockNumber": 14326930,
+            "etherscanApiKey": "DY59RXYCG9MXIH72ZCXC183KERUY7Y8VAF",
+            "nodeURL": "http://localhost:18545"
+        },
+        "chainConfig": {
+            "codeSizeCheckDisabled": true,
+            "cheatCodes": {
+                "cheatCodesEnabled": true,
+                "enableFFI": false
+            }
+        },
+        "metricLogConfig": {
+            "enabled": true,
+            "time_interval": 1,
+            "time_log_file": "./time_log.json",
+            "sequence_interval": 100,
+            "sequence_log_file": "./sequence_log.json"
+        }
+    },
+    "compilation": {
+        "platform": "crytic-compile",
+        "platformConfig": {
+            "target": ".",
+            "solcVersion": "",
+            "exportDirectory": "",
+            "args": []
+        }
+    },
+    "logging": {
+        "level": "info",
+        "logDirectory": "",
+        "noColor": false
+    }
+}
