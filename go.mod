@@ -10,7 +10,7 @@ require (
 	github.com/fxamacker/cbor v1.5.1
 	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.34.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
